@@ -103,7 +103,14 @@ sofort für alle nicht überschriebenen Werte.
   werden, mit gleichem Typ (Zahlen als Zahl speichern). Neue Einstellung = model.js + overlay-editor.js + overlay.js
   (`sanitize`); betrifft sie Aufbau/Form, zusätzlich in beide `OVERLAY_PRESETS` (gleiche Schlüssel, `npm test` prüft
   das). Einschnittige Schriften nicht künstlich fetten (`font-synthesis: none` auf `.ov`). Standard-Look = Vorlage `OVERLAY_PRESETS.bar` (Nutzerwunsch nach Vorbild einer anderen Win-Challenge:
-  Titelbalken in `barColor`, fette umgebrochene Namen, Gesamtzeit mit Status unten). Die Werte in `OVERLAY_PRESETS.bar`
+  Titelbalken in `barColor`, fette Namen, zu lange Namen als Laufschrift, Gesamtzeit mit Status zentriert unten).
+  Laufschrift: `measureNames()` in overlay.js misst jeden `.ov-name` (Name steckt in `.ov-name-text`), ab 6 px
+  Überstand `.moving` + Web-Animation (`setMarquee`: einblenden, warten, fahren, warten, ausblenden; Kanten-Maske über
+  `@property --mq-l/--mq-r`). Alle Animationen: gleiche Rundendauer und `startTime = 0` → Gleichtakt auch für neu
+  erzeugte Zeilen (lit `repeat()` baut Zeilen bei Spielwechsel neu, Klon-Liste). Keine CSS-Keyframes dafür benutzen –
+  die starten pro Element beim Hinzufügen der Klasse und laufen dann versetzt. Durchstreichen am inneren Span
+  (inline-block erbt `text-decoration` nicht). Lange Runden sind in kleinen, scrollenden Boxen nie ganz zu sehen → Tempo
+  in `MQ` nicht senken. Die Werte in `OVERLAY_PRESETS.bar`
   müssen den Defaults entsprechen; `classic` = alte Darstellung. Vorlagen setzen nie Titel, Schrift oder Farben.
   Eine Positions-Einstellung (Box innerhalb einer szenengroßen Quelle) wurde gebaut und auf Wunsch wieder entfernt.
 - **Auto-Scroll** läuft über `requestAnimationFrame`. In versteckten Tabs (z. B. ausgeblendetes Vorschau-Panel)
@@ -169,6 +176,8 @@ Datei vom Nutzer veröffentlicht am 14.09.2026). Design am selben Tag auf Schwar
 gehärtet (Startabsturz `modeBanner`, Timer-Transaktionen, halbe Einträge, Offline-Verhalten, Lesefehler, doppelte
 Vorschläge). Mit dem echten SDK offline geprüft (siehe oben); die Seite verbindet sich mit der echten Datenbank.
 Claude darf in der Firebase-Konsole nichts selbst ändern (keine Anmeldung) – Regeln veröffentlicht der Nutzer.
+GitHub Secret Scanning meldet den Firebase-`apiKey` in `js/config.js` als „Google API Key“ – erwartet, kein Leck
+(README-FAQ). Nicht aus dem Repo entfernen oder rotieren; höchstens per HTTP-Referrer auf die Pages-Domain beschränken.
 
 Offen:
 1. **Regeländerungen** in `database.rules.json` muss der Nutzer jedes Mal in der Konsole neu veröffentlichen. Ob die

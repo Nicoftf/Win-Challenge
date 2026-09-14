@@ -115,7 +115,7 @@ function sanitize(s) {
     totalPosition: ['bottom', 'top'].includes(s.totalPosition) ? s.totalPosition : D.totalPosition,
     showTotalStatus: bool(s.showTotalStatus, D.showTotalStatus),
     centerTotal: bool(s.centerTotal, D.centerTotal),
-    wrapNames: bool(s.wrapNames, D.wrapNames),
+    longNames: ['marquee', 'wrap', 'cut'].includes(s.longNames) ? s.longNames : D.longNames,
     boldNames: bool(s.boldNames, D.boldNames),
     width: num(s.width, D.width, 120, 2000),
     maxHeight: num(s.maxHeight, D.maxHeight, 60, 3000),
@@ -228,7 +228,7 @@ function row(v, g, idx, pinned = false) {
     <div class=${classMap(cls)}>
       ${s.showNumbers ? html`<span class="ov-num">${idx}</span>` : nothing}
       ${done && s.doneStyle === 'check' ? html`<span class="ov-check">${icons.check()}</span>` : nothing}
-      <span class="ov-name">${g.title}</span>
+      <span class="ov-name"><span class="ov-name-text">${g.title}</span></span>
       ${labelText ? html`<span class="ov-label">${labelText}</span>` : nothing}
       ${s.showGameTimes
         ? html`<span class=${classMap(tcls)} data-timer="game:${g.id}"></span>`
@@ -319,7 +319,7 @@ function box(v) {
       ${repeat(rows, (x) => x.g.id, (x) => row(v, x.g, x.idx))}
     </div>`;
 
-  const cls = { ov: true, 'ov-barstyle': s.headerStyle === 'bar', 'ov-wrap': s.wrapNames, 'ov-bold': s.boldNames };
+  const cls = { ov: true, 'ov-barstyle': s.headerStyle === 'bar', [`ov-long-${s.longNames}`]: true, 'ov-bold': s.boldNames };
   return html`
     <div class=${classMap(cls)} style=${styleMap(style)}>
       ${head(v)}
@@ -381,11 +381,93 @@ function afterRender() {
   tick(); // Timer-Texte sofort füllen (Spans werden ohne lit-Binding gerendert, s.u.)
   observe(app.querySelector('.ov-scroll'), app.querySelector('.ov-list'));
   measure();
+  measureNames();
 }
 
 /** Von außen angestoßenes Neurendern/-messen: Rekursionszähler zurücksetzen */
 function redraw() { measureDepth = 0; draw(); }
-function remeasure() { measureDepth = 0; measure(); }
+function remeasure() { measureDepth = 0; measure(); measureNames(); }
+
+// ------------------------------------------------------------
+//  Laufschrift für zu lange Spielnamen (longNames: 'marquee')
+//  Nur Namen, die deutlich überstehen, bekommen .moving und eine Web-Animation:
+//  einblenden → warten → bis zum Ende fahren → warten → ausblenden → von vorn.
+//  Alle Animationen haben dieselbe Rundendauer (nach dem längsten Namen) und startTime 0,
+//  hängen also an derselben Uhr: Zeilen, die neu erscheinen (Spielwechsel, Klon-Liste),
+//  laufen sofort im Gleichtakt mit. Die Kanten blenden per Maske weich aus (--mq-l/--mq-r).
+// ------------------------------------------------------------
+
+const MQ = {
+  speed: 55,      // px pro Sekunde (kurz sichtbare Zeilen in scrollenden Listen)
+  fade: 0.35,     // s ein-/ausblenden
+  hold: 1.5,      // s am Anfang stehen
+  holdEnd: 1.5,   // s am Ende stehen
+  edge: 0.25,     // s für das Ein-/Ausblenden der weichen Kante
+  minOver: 6,     // px: kleinere Überstände laufen nicht (ragen in den Abstand), sonst Gezappel
+};
+const mqState = new WeakMap(); // .ov-name → { over, total, anims }
+
+function measureNames() {
+  const box = app.querySelector('.ov');
+  if (!view || !box) return;
+  const marquee = view.settings.longNames === 'marquee';
+  const names = [...box.querySelectorAll('.ov-name')];
+  // Breite des Textes selbst messen (klappt auch bei overflow:visible und während er verschoben ist)
+  const overs = names.map((el) => {
+    const text = el.firstElementChild;
+    if (!marquee || !text) return 0;
+    const over = Math.ceil(text.getBoundingClientRect().width - el.clientWidth);
+    return over > MQ.minOver ? over : 0;
+  });
+  const maxOver = Math.max(0, ...overs);
+  const move = maxOver / MQ.speed;
+  const total = maxOver ? Math.ceil(2 * MQ.fade + MQ.hold + move + MQ.holdEnd) * 1000 : 0; // ganze Sekunden: seltener neu
+  names.forEach((el, i) => setMarquee(el, overs[i], total, move));
+}
+
+function setMarquee(el, over, total, move) {
+  const cur = mqState.get(el);
+  if (cur && cur.over === over && cur.total === total) return;
+  if (cur) { for (const a of cur.anims) a.cancel(); mqState.delete(el); }
+  if (el.classList.contains('moving') !== over > 0) el.classList.toggle('moving', over > 0);
+  const text = el.firstElementChild;
+  if (!over || !text || typeof text.animate !== 'function') return;
+
+  const off = (s) => Math.min(1, Math.max(0, (s * 1000) / total));
+  const start = MQ.fade + MQ.hold;                 // Beginn der Fahrt
+  const arrive = start + move;                     // Ende erreicht (alle Namen gleichzeitig)
+  const edge = Math.min(MQ.edge, move / 2);
+  const shift = `translateX(${-over}px)`;
+  const opts = { duration: total, iterations: Infinity };
+  let anims;
+  try {
+    anims = [
+      text.animate([
+        { offset: 0, transform: 'translateX(0)', opacity: 0 },
+        { offset: off(MQ.fade), transform: 'translateX(0)', opacity: 1 },
+        { offset: off(start), transform: 'translateX(0)', opacity: 1, easing: 'ease-in-out' },
+        { offset: off(arrive), transform: shift, opacity: 1 },
+        { offset: off(total / 1000 - MQ.fade), transform: shift, opacity: 1 },
+        { offset: 1, transform: shift, opacity: 0 },
+      ], opts),
+      // weiche Kante: rechts solange Text abgeschnitten ist, links sobald er losfährt
+      el.animate([
+        { offset: 0, '--mq-l': '0px', '--mq-r': '0.6em' },
+        { offset: off(start), '--mq-l': '0px', '--mq-r': '0.6em' },
+        { offset: off(start + edge), '--mq-l': '0.6em', '--mq-r': '0.6em' },
+        { offset: off(arrive - edge), '--mq-l': '0.6em', '--mq-r': '0.6em' },
+        { offset: off(arrive), '--mq-l': '0.6em', '--mq-r': '0px' },
+        { offset: 1, '--mq-l': '0.6em', '--mq-r': '0px' },
+      ], opts),
+    ];
+  } catch (e) {
+    // alter Browser (OBS mit sehr altem CEF): ohne Laufschrift, Name bleibt abgeschnitten
+    console.warn('Overlay: Laufschrift nicht möglich', e);
+    return;
+  }
+  for (const a of anims) a.startTime = 0;          // gemeinsame Uhr → Gleichtakt
+  mqState.set(el, { over, total, anims });
+}
 
 // ------------------------------------------------------------
 //  Timer-Tick (nur Textknoten)
@@ -394,8 +476,11 @@ function remeasure() { measureDepth = 0; measure(); }
 //  scheitern. Text kommt ausschließlich von hier (auch direkt nach Render).
 // ------------------------------------------------------------
 
+let tickCount = 0;
 function tick() {
   if (!view) return;
+  // Laufschrift alle 2 s nachmessen: Zeiten ohne Monospace-Schrift ändern beim Ticken die Breite für den Namen
+  if (++tickCount % 8 === 0 && view.settings.longNames === 'marquee') measureNames();
   const t = now();
   const els = app.querySelectorAll('[data-timer]');
   for (const el of els) {

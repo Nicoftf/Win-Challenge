@@ -225,14 +225,16 @@ Alles im Overlay-Editor, jede Änderung ist sofort gespeichert und live in Vorsc
 nur für dein Overlay. „Zurücksetzen“ stellt alles auf Standard, „Einstellungen übernehmen von“ kopiert das Aussehen
 eines Mitspielers.
 
-- **Stil**: Vorlage *Balken* (Standard: Titel im farbigen Balken, Spielnamen fett und umgebrochen, keine Nummern und
-  Einzelzeiten, Gesamtzeit mit Status wie „– PAUSIERT“ unter der Liste, eckige Box ohne Rahmen und Schatten) oder
-  *Klassisch* (Titel als Text, Nummern, Zeit je Spiel, Fortschritt, Gesamtzeit oben rechts, abgerundete Box mit Rahmen
-  und Schatten). Eine Vorlage setzt nur Aufbau und Form – Titeltext, Schriftart, Größen und Farben bleiben. Danach lässt
-  sich alles einzeln ändern: „Titel als“ farbiger Balken oder Text, Titelgröße, „Gesamtzeit steht“ unter der Liste oder
-  oben rechts, Gesamtzeit zentrieren und Status an/aus (beides nur bei Gesamtzeit unten), Namen fett, lange Namen
-  umbrechen (aus = mit „…“ gekürzt). Schriften mit nur
-  einem Schnitt (z. B. Bebas Neue) werden nicht künstlich fett gerechnet.
+- **Stil**: Vorlage *Balken* (Standard: Titel im farbigen Balken, Spielnamen fett, zu lange Namen als Laufschrift,
+  keine Nummern und Einzelzeiten, Gesamtzeit mit Status wie „– PAUSIERT“ zentriert unter der Liste, eckige Box ohne
+  Rahmen und Schatten) oder *Klassisch* (Titel als Text, Nummern, Zeit je Spiel, Fortschritt, Gesamtzeit oben rechts,
+  Namen mit „…“ gekürzt, abgerundete Box mit Rahmen und Schatten). Eine Vorlage setzt nur Aufbau und Form – Titeltext,
+  Schriftart, Größen und Farben bleiben. Danach lässt sich alles einzeln ändern: „Titel als“ farbiger Balken oder Text,
+  Titelgröße, „Gesamtzeit steht“ unter der Liste oder oben rechts, Gesamtzeit zentrieren und Status an/aus (beides nur
+  bei Gesamtzeit unten), Namen fett, „Zu lange Spielnamen“: *Laufschrift* (die Zeile bleibt einzeilig, der Name fährt
+  bis zum Ende, blendet kurz aus und beginnt neu – eine Runde dauert je nach Länge etwa 6–10 Sekunden, alle langen
+  Namen im Gleichtakt, kurze stehen still), *umbrechen* oder *mit … kürzen*.
+  Schriften mit nur einem Schnitt (z. B. Bebas Neue) werden nicht künstlich fett gerechnet.
 - **Inhalt**: Titel (leer = Name der Challenge), Titel / Gesamtzeit / Fortschritt „3 / 22“ / Nummern / Zeit je Spiel
   ein- oder ausblenden. „Erledigte Spiele anzeigen“ aus = gewonnene Spiele verschwinden aus der Liste.
   „Erledigte darstellen als“: *Durchgestrichen* (Titel durchgestrichen in der Erledigt-Farbe), *Häkchen davor*
@@ -450,6 +452,15 @@ Sind Breite und Höhe in der Browser-Quelle größer als 0? Danach in OBS bei de
 
 **Kann jemand Fremdes unsere Daten sehen?**
 Nur mit dem Raum-Code. Ohne Code lässt die Datenbank nichts durch – auch keine Liste aller Räume.
+
+**GitHub meldet „Secrets detected – Google API Key“ in `js/config.js`.**
+Erwartet und kein Leck: Das ist der `apiKey` der Firebase-Web-Config. Er muss im Code der Website stehen (jeder Browser
+bekommt ihn ohnehin) und öffnet nichts – der Schutz sind die Datenbank-Regeln und der Raum-Code. Im Spark-Tarif ohne
+Zahlungsmittel können auch keine Kosten entstehen. Einen neuen Schlüssel zu erzeugen bringt nichts, er wäre genauso
+öffentlich. Optional den Schlüssel auf eure Seite beschränken: Google Cloud Console → „APIs & Dienste“ → „Anmeldedaten“
+→ „Browser key (auto created by Firebase)“ → Anwendungseinschränkungen „Websites“ → `https://nicoftf.github.io/*`
+eintragen → Speichern (die Datenbank-Verbindung nutzt den Schlüssel nicht, dadurch geht nichts kaputt). Danach die
+Meldung auf GitHub schließen: Repository → „Security“ → „Secret scanning“ → Meldung öffnen → „Close as“ → „Won't fix“.
 
 **Mehr als vier Spieler?**
 Geht. Es gibt acht Farben, danach wiederholen sie sich.

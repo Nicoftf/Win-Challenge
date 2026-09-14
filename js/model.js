@@ -49,11 +49,11 @@ export const OVERLAY_FONTS = [
 /** Vorlagen im Overlay-Editor: setzen nur Aufbau/Form, nicht Titel, Schrift oder Farben */
 export const OVERLAY_PRESETS = {
   bar: {          // Standard: roter Titelbalken, Namen fett mit Umbruch, Gesamtzeit mit Status unten (zentriert)
-    headerStyle: 'bar', totalPosition: 'bottom', showTotalStatus: true, centerTotal: true, wrapNames: true, boldNames: true,
+    headerStyle: 'bar', totalPosition: 'bottom', showTotalStatus: true, centerTotal: true, longNames: 'marquee', boldNames: true,
     showProgress: false, showNumbers: false, showGameTimes: false, radius: 0, borderWidth: 0, shadow: false,
   },
   classic: {      // frühere Darstellung: Titel als Text, Zeiten je Spiel, Nummern, Gesamtzeit oben
-    headerStyle: 'plain', totalPosition: 'top', showTotalStatus: false, centerTotal: false, wrapNames: false, boldNames: false,
+    headerStyle: 'plain', totalPosition: 'top', showTotalStatus: false, centerTotal: false, longNames: 'cut', boldNames: false,
     showProgress: true, showNumbers: true, showGameTimes: true, radius: 10, borderWidth: 1, shadow: true,
   },
 };
@@ -75,7 +75,7 @@ export const OVERLAY_DEFAULTS = {
   totalPosition: 'bottom', // 'bottom' = Gesamtzeit unter der Liste | 'top' = im Kopf
   showTotalStatus: true,  // „– pausiert“ / „– läuft“ / „– beendet“ hinter der Gesamtzeit
   centerTotal: true,      // Gesamtzeit unten zentriert (sonst linksbündig)
-  wrapNames: true,        // lange Spielnamen umbrechen statt mit … kürzen
+  longNames: 'marquee',   // zu lange Spielnamen: 'marquee' = Laufschrift | 'wrap' = umbrechen | 'cut' = mit … kürzen
   boldNames: true,
   // Größe & Form
   width: 320,

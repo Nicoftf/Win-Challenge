@@ -205,6 +205,9 @@ try {
     const A = m.bindActions(s, key, () => room);
     const g = m.sortedGames(room)[9];
     await A.startGame(${JSON.stringify(seed.nico)}, g.id);
+    // ein zu langer Name für die Laufschrift (nicht „Celeste“, das zählt der Duplikat-Check)
+    const long = m.sortedGames(room).find((x, i) => i > 10 && x.title !== 'Celeste');
+    await A.renameGame(long.id, 'Dangerous Mountain Together (Schneegebiet) 0/1 Hardcore');
     return g.title;
   })()`);
   await b.goto(`${BASE}overlay.html?room=${seed.key}&player=${seed.nico}`, 1200);
@@ -212,6 +215,14 @@ try {
     rect: (() => { const r = document.querySelector('.ov').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })(),
     titlebar: document.querySelector('.ov-titlebar')?.textContent.trim(),
     foot: document.querySelector('.ov-foot')?.textContent.replace(/\\s+/g, ' ').trim(),
+    marquee: (() => {
+      const moving = [...document.querySelectorAll('.ov-name.moving')];
+      const long = moving.find((e) => /Dangerous/.test(e.textContent));
+      const anims = moving.flatMap((e) => e.firstElementChild.getAnimations());
+      return { count: moving.length, longMoves: !!long, animated: anims.length > 0,
+        synced: anims.every((a) => a.startTime === 0 && a.effect.getTiming().duration === anims[0].effect.getTiming().duration),
+        shortStill: !document.querySelector('.ov-row.pinned .ov-name.moving') };
+    })(),
     bg: getComputedStyle(document.body).backgroundColor,
     pinned: (() => { const p = document.querySelector('.ov-row.pinned'); return p ? { title: p.querySelector('.ov-name').textContent, inTrack: !!p.closest('.ov-track'), label: p.querySelector('.ov-label')?.textContent } : null; })(),
     dup: [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && e.textContent === 'Celeste').length,
@@ -227,6 +238,8 @@ try {
   }
   check(y[0] === 0 && y[y.length - 1] < -20, 'Auto-Scroll: erst Pause, dann Bewegung', y);
   check(!!ov.titlebar && /^\d+:\d\d:\d\d\s*–\s*läuft$/.test(ov.foot || ''), 'Titelbalken und Gesamtzeit mit Status unten', { titlebar: ov.titlebar, foot: ov.foot });
+  check(ov.marquee.longMoves && ov.marquee.animated && ov.marquee.synced && ov.marquee.shortStill,
+    'Laufschrift nur für zu lange Namen, alle im Gleichtakt', ov.marquee);
   await b.shot(SHOTS + 'overlay.png', { x: 0, y: 0, width: 360, height: 340 });
 
   await b.goto(`${BASE}overlay.html`, 1000);

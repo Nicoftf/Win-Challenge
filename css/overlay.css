@@ -180,9 +180,21 @@ body {
 .ov-row.active.paused { border-left-color: var(--muted); background: var(--line); }
 .ov-row.active.paused .ov-num { color: var(--muted); }
 
-/* Spielnamen fett / umbrechen */
+/* Spielnamen fett / lange Namen (longNames) */
 .ov-bold .ov-name { font-weight: 600; }
-.ov-wrap .ov-name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.ov-long-wrap .ov-name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+/* Laufschrift: Namen mit .moving bewegt overlay.js per Web-Animation (setMarquee).
+   Knapp zu lange Namen (≤ 6 px) laufen nicht, sie dürfen in den Abstand/Innenabstand ragen. */
+@property --mq-l { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --mq-r { syntax: '<length>'; inherits: false; initial-value: 0px; }
+.ov-long-marquee .ov-name { overflow: visible; text-overflow: clip; }
+.ov-long-marquee .ov-scroll { margin-right: calc(var(--pad) * -1); padding-right: var(--pad); }
+.ov-long-marquee .ov-name.moving {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--mq-l), #000 calc(100% - var(--mq-r)), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 var(--mq-l), #000 calc(100% - var(--mq-r)), transparent 100%);
+}
+.ov-long-marquee .ov-name.moving > .ov-name-text { display: inline-block; will-change: transform, opacity; }
 
 /* ---------- Gesamtzeit unten (totalPosition: 'bottom') ---------- */
 .ov-foot {
@@ -207,7 +219,8 @@ body {
 .ov-foot.finished { color: var(--done); }
 
 /* erledigte Spiele */
-.ov-row.done-strike .ov-name { text-decoration: line-through; color: var(--done); }
+.ov-row.done-strike .ov-name { color: var(--done); }
+.ov-row.done-strike .ov-name-text { text-decoration: line-through; }   /* am inneren Span: gilt auch bei Laufschrift (inline-block) */
 .ov-row.done-dim { opacity: 0.6; }
 .ov-row.done-dim .ov-name { color: var(--muted); }
 

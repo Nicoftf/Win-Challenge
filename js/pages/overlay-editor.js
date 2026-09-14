@@ -302,8 +302,9 @@ const styleGroup = (ctx, s) => html`
     ${checkField(ctx, s, 'centerTotal', 'Gesamtzeit zentrieren', 'nur wenn sie unter der Liste steht')}
     ${checkField(ctx, s, 'showTotalStatus', 'Status hinter der Gesamtzeit', 'nur unter der Liste')}
     ${checkField(ctx, s, 'boldNames', 'Spielnamen fett')}
-    ${checkField(ctx, s, 'wrapNames', 'Lange Namen umbrechen', 'sonst mit … gekürzt')}
-  </div>`;
+  </div>
+  ${selectField(ctx, s, 'longNames', 'Zu lange Spielnamen', [['marquee', 'Laufschrift'], ['wrap', 'umbrechen'], ['cut', 'mit … kürzen']],
+    { help: 'Laufschrift: Die Zeile bleibt einzeilig, der Name fährt bis zum Ende und beginnt dann neu.' })}`;
 
 const contentGroup = (ctx, s) => html`
   ${textField(ctx, s, 'title', 'Titel', { placeholder: ctx.room?.meta?.name || 'Win-Challenge', help: 'Leer = Name der Challenge.' })}
