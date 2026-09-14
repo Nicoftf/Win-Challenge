@@ -1,0 +1,13 @@
+{
+  "name": "win-challenge",
+  "private": true,
+  "description": "Win-Challenge: Spieleliste mit Timern, Voting und OBS-Overlay. Statische Seite ohne Build-Schritt.",
+  "type": "module",
+  "engines": { "node": ">=22.4" },
+  "scripts": {
+    "serve": "node scripts/serve.mjs",
+    "test": "node tests/model.test.mjs",
+    "test:browser": "node tests/browser.test.mjs",
+    "test:all": "node tests/model.test.mjs && node tests/browser.test.mjs"
+  }
+}

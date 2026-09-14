@@ -22,8 +22,8 @@ Spieleliste und Voting sind gemeinsam. Zeiten und Overlay-Einstellungen hat jede
 Die Seite lädt JavaScript-Module und braucht deshalb einen Webserver. Doppelklick auf `index.html` funktioniert nicht.
 
 1. Terminal im Projektordner öffnen.
-2. `python3 -m http.server 8000` (unter Windows: `py -m http.server 8000`). Dafür muss Python installiert sein
-   (https://www.python.org). Ohne Python geht z. B. auch VS Code mit der Erweiterung „Live Server“.
+2. `npm run serve` (braucht Node.js ab Version 22). Alternativ mit Python: `python3 -m http.server 8000`,
+   unter Windows `py -m http.server 8000`.
 3. Im Browser http://localhost:8000 öffnen.
 
 Solange in `js/config.js` kein Firebase eingetragen ist, läuft die Seite im **lokalen Modus** (gelber Hinweis oben).
@@ -316,7 +316,8 @@ Hinweise:
 
 ## Technik
 
-- Statische Dateien: HTML, CSS, JavaScript (ES-Module). Kein Build, kein npm, kein Server-Code.
+- Statische Dateien: HTML, CSS, JavaScript (ES-Module). Kein Build, keine npm-Pakete, kein Server-Code.
+  `package.json` enthält nur Befehle für Entwicklung und Tests, die Website braucht sie nicht.
 - Templates mit **lit-html 3.3.3** (liegt in `vendor/`).
 - Online-Modus: **Firebase JS SDK 12.19.0** wird beim Laden von `www.gstatic.com` nachgeladen. Lokaler Modus:
   `localStorage`; offene Tabs im selben Browser gleichen sich per BroadcastChannel ab.
@@ -339,10 +340,27 @@ Dateien:
 | `vendor/lit-html/` | lit-html |
 | `database.rules.json` | Regeln für die Realtime Database |
 | `.nojekyll` | leer; verhindert Umbauen durch GitHub Pages |
+| `scripts/serve.mjs` | kleiner Webserver für die Entwicklung (Node, ohne Cache) |
+| `tests/` | automatische Tests (Logik und kompletter Ablauf im Browser) |
+| `CLAUDE.md` | Projektwissen für Claude Code (Aufbau, Regeln, offene Punkte) |
 
 Datenmodell in der Datenbank (alles unter `rooms/CODE/`): `meta` (Name), `players`, `games` (gemeinsame Liste),
 `runs` (Zeiten je Spieler), `overlay` (Einstellungen je Spieler), `voting` (Einstellungen, Vorschläge, Stimmen).
 Details stehen als Kommentar oben in `js/model.js`.
+
+### Entwicklung und Tests
+
+Braucht nur Node.js ab Version 22.4 (https://nodejs.org), keine Installation von Paketen.
+
+```bash
+npm run serve          # Website auf http://localhost:8000
+npm test               # Logik-Tests (Timer, Voting, Speicher)
+npm run test:browser   # alle Seiten im unsichtbaren Chrome/Edge durchklicken
+```
+
+Der Browser-Test findet Chrome, Edge oder Chromium selbst (sonst Pfad in der Umgebungsvariable `CHROME` angeben)
+und legt Screenshots in `tests/.shots/` ab. Er läuft nur im lokalen Modus: Ist Firebase in `js/config.js`
+eingetragen, bricht er ab, damit keine Testdaten in eurer echten Datenbank landen.
 
 ## FAQ
 

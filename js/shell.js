@@ -82,13 +82,16 @@ export async function copyText(text) {
   }
 }
 
-/** Fehler (u.a. Firebase PERMISSION_DENIED) in verständlichen deutschen Text übersetzen */
-export function friendlyError(e) {
+/**
+ * Fehler für einen Toast aufbereiten. Firebase-Berechtigungsfehler (PERMISSION_DENIED) werden übersetzt,
+ * eigene Meldungen aus model.js (z.B. Budget voll) bleiben unverändert. Seiten: toast(friendlyError(e), 'error').
+ */
+export function friendlyError(e, fallback = 'Das hat nicht geklappt.') {
   const raw = String((e && (e.code || e.message)) || e || '');
   if (/permission/i.test(raw)) {
     return 'Keine Berechtigung – sind die Datenbank-Regeln aus database.rules.json veröffentlicht? (README → Firebase einrichten)';
   }
-  return `Fehler: ${e && e.message ? e.message : e}`;
+  return (e && e.message) || (typeof e === 'string' && e) || fallback;
 }
 
 // ------------------------------------------------------------

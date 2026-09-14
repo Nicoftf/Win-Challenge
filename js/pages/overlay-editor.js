@@ -12,7 +12,7 @@
 //    Checkbox/Select → sofort
 //  Zahlen werden als Zahlen, Booleans als Booleans gespeichert.
 
-import { boot, html, nothing, live, classMap, model, icons, toast, copyText, overlayUrl } from '../shell.js';
+import { boot, html, nothing, live, classMap, model, icons, toast, friendlyError, copyText, overlayUrl } from '../shell.js';
 
 const { OVERLAY_DEFAULTS, OVERLAY_FONTS } = model;
 const MONO_FONTS = ['IBM Plex Mono', 'JetBrains Mono', 'Roboto Mono', 'Press Start 2P'];
@@ -92,7 +92,7 @@ async function flush() {
     for (const [k, v] of Object.entries(patch)) if (ui.draft[k] === v) delete ui.draft[k];
   } catch (e) {
     for (const k of Object.keys(patch)) delete ui.draft[k];
-    toast(e.message || 'Speichern fehlgeschlagen', 'error');
+    toast(friendlyError(e, 'Speichern fehlgeschlagen'), 'error');
     ctx.refresh();
   }
 }
@@ -328,7 +328,7 @@ const actionsBlock = (ctx) => {
       await ctx.actions.resetOverlay(ctx.playerId);
       ui.draft = {}; ui.customFont = false;
       toast('Einstellungen zurückgesetzt');
-    } catch (e) { toast(e.message, 'error'); }
+    } catch (e) { toast(friendlyError(e), 'error'); }
   };
   const copy = async () => {
     // Auswahl zur Klickzeit lesen: der Select-Change rendert nicht neu, `from` wäre veraltet
@@ -341,7 +341,7 @@ const actionsBlock = (ctx) => {
       await ctx.actions.copyOverlay(p.id, ctx.playerId);
       ui.draft = {}; ui.customFont = false;
       toast(`Einstellungen von ${p.name} übernommen`);
-    } catch (e) { toast(e.message, 'error'); }
+    } catch (e) { toast(friendlyError(e), 'error'); }
   };
 
   return html`

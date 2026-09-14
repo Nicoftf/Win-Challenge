@@ -5,7 +5,7 @@
 //  Alles Gemeinsame (Vorschläge, Stimmen, Einstellungen) liegt unter voting/.
 //  Auswertung kommt aus model.votingResults(room), Budgets aus model.voteUsage().
 
-import { boot, html, nothing, repeat, classMap, model, icons, toast } from '../shell.js';
+import { boot, html, nothing, repeat, classMap, model, icons, toast, friendlyError } from '../shell.js';
 
 const { VOTE_VALUES, VOTE_INFO } = model;
 
@@ -62,7 +62,7 @@ async function addSuggestions(ctx, text, field) {
     ids = await Promise.all(jobs);
   } catch (e) {
     if (field && !field.value) field.value = typed;
-    toast(e.message, 'error');
+    toast(friendlyError(e), 'error');
     return;
   }
   for (const id of ids) {
@@ -82,7 +82,7 @@ async function castVote(ctx, sid, value) {
   try {
     await ctx.actions.vote(ctx.playerId, sid, current === value ? null : value);
   } catch (e) {
-    toast(e.message, 'error');
+    toast(friendlyError(e), 'error');
   }
 }
 
@@ -107,7 +107,7 @@ async function commitEdit(ctx, sid, value) {
     const dup = model.sortedSuggestions(ctx.room).some((x) => x.id !== sid && String(x.title || '').toLowerCase() === lower);
     if (dup) toast('Gibt es schon', 'error');
     else {
-      try { await ctx.actions.renameSuggestion(sid, title); } catch (e) { toast(e.message, 'error'); }
+      try { await ctx.actions.renameSuggestion(sid, title); } catch (e) { toast(friendlyError(e), 'error'); }
     }
   }
   ctx.refresh();
@@ -122,7 +122,7 @@ async function removeSuggestion(ctx, s) {
   const ok = await ctx.confirm(`„${s.title}“ aus dem Voting entfernen? Das gilt für alle, Stimmen dafür gehen verloren.`, { danger: true, okLabel: 'Entfernen' });
   if (!ok) return;
   if (model.votingSettings(ctx.room).closed) { toast('Das Voting ist geschlossen', 'error'); return; }
-  try { await ctx.actions.removeSuggestion(s.id); } catch (e) { toast(e.message, 'error'); }
+  try { await ctx.actions.removeSuggestion(s.id); } catch (e) { toast(friendlyError(e), 'error'); }
 }
 
 async function importGames(ctx) {
@@ -130,12 +130,12 @@ async function importGames(ctx) {
     const n = await ctx.actions.importGamesAsSuggestions(ctx.playerId);
     toast(n ? `${plural(n, 'Spiel', 'Spiele')} aus der Spieleliste übernommen` : 'Alle Spiele sind schon drin', n ? 'success' : 'info');
   } catch (e) {
-    toast(e.message, 'error');
+    toast(friendlyError(e), 'error');
   }
 }
 
 async function setSetting(ctx, key, value) {
-  try { await ctx.actions.setVotingSettings({ [key]: value }); } catch (e) { toast(e.message, 'error'); }
+  try { await ctx.actions.setVotingSettings({ [key]: value }); } catch (e) { toast(friendlyError(e), 'error'); }
 }
 
 function setNumberSetting(ctx, key, e, min, max = 500) {
@@ -163,7 +163,7 @@ async function applyResult(ctx) {
     ui.applied = n;
     toast(`${plural(n, 'Spiel', 'Spiele')} übernommen`, 'success');
   } catch (e) {
-    toast(e.message, 'error');
+    toast(friendlyError(e), 'error');
   }
   ui.applying = false;
   ctx.refresh();

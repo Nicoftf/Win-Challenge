@@ -12,7 +12,7 @@
 //  Im Template hängt der Text an `.textContent=` (Property-Binding),
 //  damit lit-html keine Marker im Element ablegt, die tick() zerstören könnte.
 
-import { boot, html, nothing, repeat, classMap, live, model, icons, toast, copyText, overlayUrl } from '../shell.js';
+import { boot, html, nothing, repeat, classMap, live, model, icons, toast, friendlyError, copyText, overlayUrl } from '../shell.js';
 
 const { fmtTime, timerValue, timerRunning } = model;
 
@@ -44,7 +44,7 @@ async function act(fn) {
     return true;
   } catch (e) {
     console.error(e);
-    toast(e?.message || 'Das hat nicht geklappt.', 'error');
+    toast(friendlyError(e), 'error');
     return false;
   }
 }
