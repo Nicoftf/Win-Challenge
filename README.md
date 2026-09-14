@@ -231,9 +231,10 @@ eines Mitspielers.
   Namen mit „…“ gekürzt, abgerundete Box mit Rahmen und Schatten). Eine Vorlage setzt nur Aufbau und Form – Titeltext,
   Schriftart, Größen und Farben bleiben. Danach lässt sich alles einzeln ändern: „Titel als“ farbiger Balken oder Text,
   Titelgröße, „Gesamtzeit steht“ unter der Liste oder oben rechts, Gesamtzeit zentrieren und Status an/aus (beides nur
-  bei Gesamtzeit unten), Namen fett, „Zu lange Spielnamen“: *Laufschrift* (die Zeile bleibt einzeilig, der Name fährt
-  bis zum Ende, blendet kurz aus und beginnt neu – eine Runde dauert je nach Länge etwa 6–10 Sekunden, alle langen
-  Namen im Gleichtakt, kurze stehen still), *umbrechen* oder *mit … kürzen*.
+  bei Gesamtzeit unten), Namen fett, „Zu lange Spielnamen“: *Laufschrift* (die Zeile bleibt einzeilig; alle langen Namen
+  stehen 2 Sekunden, laufen dann gemeinsam und gleich schnell los, jeder bleibt an seinem Ende stehen; ist auch der
+  längste durch, springen nach 2 Sekunden alle zusammen an den Anfang – kein Zurückfahren, kein Ausblenden; kurze
+  Namen stehen still), *umbrechen* oder *mit … kürzen*.
   Schriften mit nur einem Schnitt (z. B. Bebas Neue) werden nicht künstlich fett gerechnet.
 - **Inhalt**: Titel (leer = Name der Challenge), Titel / Gesamtzeit / Fortschritt „3 / 22“ / Nummern / Zeit je Spiel
   ein- oder ausblenden. „Erledigte Spiele anzeigen“ aus = gewonnene Spiele verschwinden aus der Liste.

@@ -206,8 +206,9 @@ try {
     const g = m.sortedGames(room)[9];
     await A.startGame(${JSON.stringify(seed.nico)}, g.id);
     // ein zu langer Name für die Laufschrift (nicht „Celeste“, das zählt der Duplikat-Check)
-    const long = m.sortedGames(room).find((x, i) => i > 10 && x.title !== 'Celeste');
+    const [long, long2] = m.sortedGames(room).filter((x, i) => i > 10 && x.title !== 'Celeste');
     await A.renameGame(long.id, 'Dangerous Mountain Together (Schneegebiet) 0/1 Hardcore');
+    await A.renameGame(long2.id, 'Minecraft (Enderdrache) Hardcore 0/1 ohne Tode');   // zweite, andere Länge
     return g.title;
   })()`);
   await b.goto(`${BASE}overlay.html?room=${seed.key}&player=${seed.nico}`, 1200);
@@ -219,8 +220,23 @@ try {
       const moving = [...document.querySelectorAll('.ov-name.moving')];
       const long = moving.find((e) => /Dangerous/.test(e.textContent));
       const anims = moving.flatMap((e) => e.firstElementChild.getAnimations());
-      return { count: moving.length, longMoves: !!long, animated: anims.length > 0,
-        synced: anims.every((a) => a.startTime === 0 && a.effect.getTiming().duration === anims[0].effect.getTiming().duration),
+      // Gemeinsame Runde: Keyframes 0 → Halt → Ende (−Strecke) → bleibt am Ende. Tempo = Strecke / Fahrzeit
+      const shape = anims.map((a) => {
+        const kf = a.effect.getKeyframes();
+        const x = (k) => parseFloat(/translateX\\((-?[\\d.]+)(px)?\\)/.exec(k.transform)?.[1] || 0);
+        const dist = -x(kf[2]);
+        const T = a.effect.getTiming().duration;
+        return { T, start: a.startTime, arrive: kf[2].offset, dist,
+          speed: Math.round(dist / (T * (kf[2].offset - kf[1].offset)) * 1000),
+          waits: kf.length === 4 && x(kf[0]) === 0 && x(kf[3]) === -dist && dist > 0 };
+      });
+      const speeds = shape.map((v) => v.speed);
+      const arrivals = shape.map((v) => v.arrive);
+      return { count: moving.length, longMoves: !!long, animated: anims.length > 0, speeds, arrivals,
+        sameSpeed: speeds.length > 0 && speeds.every((v) => Math.abs(v - speeds[0]) <= 1),
+        together: shape.length > 1 && shape.every((v) => v.T === shape[0].T && v.start === shape[0].start),
+        waitForLongest: shape.every((v) => v.waits) && new Set(shape.map((v) => v.dist)).size > 1
+          && Math.max(...arrivals) <= 1 - 1900 / shape[0].T,
         shortStill: !document.querySelector('.ov-row.pinned .ov-name.moving') };
     })(),
     bg: getComputedStyle(document.body).backgroundColor,
@@ -238,8 +254,8 @@ try {
   }
   check(y[0] === 0 && y[y.length - 1] < -20, 'Auto-Scroll: erst Pause, dann Bewegung', y);
   check(!!ov.titlebar && /^\d+:\d\d:\d\d\s*–\s*läuft$/.test(ov.foot || ''), 'Titelbalken und Gesamtzeit mit Status unten', { titlebar: ov.titlebar, foot: ov.foot });
-  check(ov.marquee.longMoves && ov.marquee.animated && ov.marquee.synced && ov.marquee.shortStill,
-    'Laufschrift nur für zu lange Namen, alle im Gleichtakt', ov.marquee);
+  check(ov.marquee.longMoves && ov.marquee.animated && ov.marquee.sameSpeed && ov.marquee.together && ov.marquee.waitForLongest && ov.marquee.shortStill,
+    'Laufschrift: gleich schnell, gemeinsamer Start, Neustart erst wenn der längste Name durch ist', ov.marquee);
   await b.shot(SHOTS + 'overlay.png', { x: 0, y: 0, width: 360, height: 340 });
 
   await b.goto(`${BASE}overlay.html`, 1000);

@@ -390,83 +390,87 @@ function remeasure() { measureDepth = 0; measure(); measureNames(); }
 
 // ------------------------------------------------------------
 //  Laufschrift für zu lange Spielnamen (longNames: 'marquee')
-//  Nur Namen, die deutlich überstehen, bekommen .moving und eine Web-Animation:
-//  einblenden → warten → bis zum Ende fahren → warten → ausblenden → von vorn.
-//  Alle Animationen haben dieselbe Rundendauer (nach dem längsten Namen) und startTime 0,
-//  hängen also an derselben Uhr: Zeilen, die neu erscheinen (Spielwechsel, Klon-Liste),
-//  laufen sofort im Gleichtakt mit. Die Kanten blenden per Maske weich aus (--mq-l/--mq-r).
+//  Gemeinsame Runde (Nutzerwunsch): Alle Namen, die deutlich überstehen, starten gleichzeitig
+//  und fahren im selben Tempo (MQ.speed) bis zu ihrem Ende. Wer angekommen ist, bleibt stehen.
+//  Erst wenn auch der längste Name am Ende ist (+ MQ.holdEnd), springen alle gleichzeitig an den
+//  Anfang zurück, stehen MQ.hold und die nächste Runde beginnt. Kein Zurückfahren, kein Ausblenden.
+//  Technik: alle Animationen haben dieselbe Dauer (nach dem längsten Namen) und dieselbe startTime
+//  (mq.origin) → neue Zeilen (Spielwechsel, Klon-Liste) laufen im selben Takt mit. Ändert sich die
+//  Rundendauer, beginnen alle gemeinsam von vorn.
 // ------------------------------------------------------------
 
 const MQ = {
-  speed: 55,      // px pro Sekunde (kurz sichtbare Zeilen in scrollenden Listen)
-  fade: 0.35,     // s ein-/ausblenden
-  hold: 1.5,      // s am Anfang stehen
-  holdEnd: 1.5,   // s am Ende stehen
-  edge: 0.25,     // s für das Ein-/Ausblenden der weichen Kante
+  speed: 40,      // px pro Sekunde, für alle Namen gleich
+  hold: 2,        // s Stillstand am Anfang jeder Runde
+  holdEnd: 2,     // s Stillstand, nachdem der längste Name angekommen ist
+  edge: 0.3,      // s für das Ein-/Ausblenden der weichen Kanten
   minOver: 6,     // px: kleinere Überstände laufen nicht (ragen in den Abstand), sonst Gezappel
 };
-const mqState = new WeakMap(); // .ov-name → { over, total, anims }
+const mq = { total: 0, origin: 0 };  // gemeinsame Rundendauer (ms) und Startzeit aller Laufschriften
+const mqState = new WeakMap();       // .ov-name → { dist, total, origin, anims }
 
 function measureNames() {
   const box = app.querySelector('.ov');
   if (!view || !box) return;
   const marquee = view.settings.longNames === 'marquee';
   const names = [...box.querySelectorAll('.ov-name')];
-  // Breite des Textes selbst messen (klappt auch bei overflow:visible und während er verschoben ist)
-  const overs = names.map((el) => {
+  // Breite des Textes selbst – klappt auch bei overflow:visible und während er verschoben ist
+  const dists = names.map((el) => {
     const text = el.firstElementChild;
-    if (!marquee || !text) return 0;
-    const over = Math.ceil(text.getBoundingClientRect().width - el.clientWidth);
-    return over > MQ.minOver ? over : 0;
+    const over = marquee && text ? Math.ceil(text.getBoundingClientRect().width - el.clientWidth) : 0;
+    return over > MQ.minOver ? over + 2 : 0;   // +2 px: letzter Buchstabe steht ganz im Bild
   });
-  const maxOver = Math.max(0, ...overs);
-  const move = maxOver / MQ.speed;
-  const total = maxOver ? Math.ceil(2 * MQ.fade + MQ.hold + move + MQ.holdEnd) * 1000 : 0; // ganze Sekunden: seltener neu
-  names.forEach((el, i) => setMarquee(el, overs[i], total, move));
+  const maxDist = Math.max(0, ...dists);
+  // Rundendauer auf halbe Sekunden gerundet, damit kleine Breitenänderungen nicht jedes Mal neu starten
+  const total = maxDist ? Math.ceil((MQ.hold + maxDist / MQ.speed + MQ.holdEnd) * 2) * 500 : 0;
+  if (total !== mq.total) {
+    mq.total = total;
+    mq.origin = document.timeline?.currentTime ?? 0;   // alle gemeinsam von vorn
+  }
+  names.forEach((el, i) => setMarquee(el, dists[i]));
 }
 
-function setMarquee(el, over, total, move) {
+function setMarquee(el, dist) {
   const cur = mqState.get(el);
-  if (cur && cur.over === over && cur.total === total) return;
-  if (cur) { for (const a of cur.anims) a.cancel(); mqState.delete(el); }
-  if (el.classList.contains('moving') !== over > 0) el.classList.toggle('moving', over > 0);
+  if (cur && cur.dist === dist && cur.total === mq.total && cur.origin === mq.origin) return;
+  if (cur) { for (const x of cur.anims) x.cancel(); mqState.delete(el); }
+  if (el.classList.contains('moving') !== dist > 0) el.classList.toggle('moving', dist > 0);
   const text = el.firstElementChild;
-  if (!over || !text || typeof text.animate !== 'function') return;
+  if (!dist || !mq.total || !text || typeof text.animate !== 'function') return;
 
-  const off = (s) => Math.min(1, Math.max(0, (s * 1000) / total));
-  const start = MQ.fade + MQ.hold;                 // Beginn der Fahrt
-  const arrive = start + move;                     // Ende erreicht (alle Namen gleichzeitig)
-  const edge = Math.min(MQ.edge, move / 2);
-  const shift = `translateX(${-over}px)`;
+  const total = mq.total;
+  const hold = MQ.hold * 1000;
+  const arrive = hold + (dist / MQ.speed) * 1000;         // dieser Name ist am Ende
+  const o = (ms) => Math.min(1, Math.max(0, ms / total));
+  const e = Math.min(MQ.edge * 1000, (arrive - hold) / 2); // Dauer der Kanten-Übergänge
+  const shift = `translateX(${-dist}px)`;
   const opts = { duration: total, iterations: Infinity };
   let anims;
   try {
     anims = [
       text.animate([
-        { offset: 0, transform: 'translateX(0)', opacity: 0 },
-        { offset: off(MQ.fade), transform: 'translateX(0)', opacity: 1 },
-        { offset: off(start), transform: 'translateX(0)', opacity: 1, easing: 'ease-in-out' },
-        { offset: off(arrive), transform: shift, opacity: 1 },
-        { offset: off(total / 1000 - MQ.fade), transform: shift, opacity: 1 },
-        { offset: 1, transform: shift, opacity: 0 },
+        { offset: 0, transform: 'translateX(0)' },
+        { offset: o(hold), transform: 'translateX(0)', easing: 'linear' },
+        { offset: o(arrive), transform: shift },
+        { offset: 1, transform: shift },               // am Ende warten; Rundenbeginn = Sprung an den Anfang
       ], opts),
-      // weiche Kante: rechts solange Text abgeschnitten ist, links sobald er losfährt
+      // weiche Kanten: rechts, solange das Ende fehlt; links, solange der Anfang fehlt
       el.animate([
         { offset: 0, '--mq-l': '0px', '--mq-r': '0.6em' },
-        { offset: off(start), '--mq-l': '0px', '--mq-r': '0.6em' },
-        { offset: off(start + edge), '--mq-l': '0.6em', '--mq-r': '0.6em' },
-        { offset: off(arrive - edge), '--mq-l': '0.6em', '--mq-r': '0.6em' },
-        { offset: off(arrive), '--mq-l': '0.6em', '--mq-r': '0px' },
+        { offset: o(hold), '--mq-l': '0px', '--mq-r': '0.6em' },
+        { offset: o(hold + e), '--mq-l': '0.6em', '--mq-r': '0.6em' },
+        { offset: o(arrive - e), '--mq-l': '0.6em', '--mq-r': '0.6em' },
+        { offset: o(arrive), '--mq-l': '0.6em', '--mq-r': '0px' },
         { offset: 1, '--mq-l': '0.6em', '--mq-r': '0px' },
       ], opts),
     ];
-  } catch (e) {
+  } catch (err) {
     // alter Browser (OBS mit sehr altem CEF): ohne Laufschrift, Name bleibt abgeschnitten
-    console.warn('Overlay: Laufschrift nicht möglich', e);
+    console.warn('Overlay: Laufschrift nicht möglich', err);
     return;
   }
-  for (const a of anims) a.startTime = 0;          // gemeinsame Uhr → Gleichtakt
-  mqState.set(el, { over, total, anims });
+  for (const a of anims) a.startTime = mq.origin;       // gemeinsamer Takt
+  mqState.set(el, { dist, total, origin: mq.origin, anims });
 }
 
 // ------------------------------------------------------------
