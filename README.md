@@ -225,6 +225,14 @@ Alles im Overlay-Editor, jede Änderung ist sofort gespeichert und live in Vorsc
 nur für dein Overlay. „Zurücksetzen“ stellt alles auf Standard, „Einstellungen übernehmen von“ kopiert das Aussehen
 eines Mitspielers.
 
+- **Stil**: Vorlage *Balken* (Standard: Titel im farbigen Balken, Spielnamen fett und umgebrochen, keine Nummern und
+  Einzelzeiten, Gesamtzeit mit Status wie „– PAUSIERT“ unter der Liste, eckige Box ohne Rahmen und Schatten) oder
+  *Klassisch* (Titel als Text, Nummern, Zeit je Spiel, Fortschritt, Gesamtzeit oben rechts, abgerundete Box mit Rahmen
+  und Schatten). Eine Vorlage setzt nur Aufbau und Form – Titeltext, Schriftart, Größen und Farben bleiben. Danach lässt
+  sich alles einzeln ändern: „Titel als“ farbiger Balken oder Text, Titelgröße, „Gesamtzeit steht“ unter der Liste oder
+  oben rechts, Gesamtzeit zentrieren und Status an/aus (beides nur bei Gesamtzeit unten), Namen fett, lange Namen
+  umbrechen (aus = mit „…“ gekürzt). Schriften mit nur
+  einem Schnitt (z. B. Bebas Neue) werden nicht künstlich fett gerechnet.
 - **Inhalt**: Titel (leer = Name der Challenge), Titel / Gesamtzeit / Fortschritt „3 / 22“ / Nummern / Zeit je Spiel
   ein- oder ausblenden. „Erledigte Spiele anzeigen“ aus = gewonnene Spiele verschwinden aus der Liste.
   „Erledigte darstellen als“: *Durchgestrichen* (Titel durchgestrichen in der Erledigt-Farbe), *Häkchen davor*
@@ -232,16 +240,17 @@ eines Mitspielers.
   „Aktives Spiel oben anpinnen“: Das laufende bzw. zuletzt gestartete Spiel steht als eigener Block direkt unter dem
   Kopf und scrollt nicht mit. Aus = es bleibt an seinem Platz in der Liste (trotzdem hervorgehoben).
   „Label am aktiven Spiel“: kleiner Text neben dem aktiven Spiel (Standard „Läuft“, leer = kein Label). Ist das Spiel
-  pausiert, steht dort automatisch „Pause“.
+  pausiert, steht dort automatisch „Pausiert“.
 - **Größe**: Breite und maximale Höhe der Box, Innenabstand, Zeilenabstand, Eckenradius, Rahmenbreite. Die Box wächst
   mit der Liste bis zur maximalen Höhe. „Schatten unter der Box“ braucht rechts und unten 16 px Platz: Die empfohlene
   Größe der OBS-Quelle ist dann 16 px breiter und höher als die Box (der Editor zeigt die passende Größe an).
-- **Farben**: Hintergrund mit Deckkraft (unter 100 % scheint die Szene durch), Rahmen, Text, *Gedämpft* (Nummern,
-  Fortschritt, noch nicht gestartete Zeiten), *Akzent* (aktives Spiel, laufende Zeit), *Erledigt* (Haken, Zeiten
-  erledigter Spiele, Fortschrittsbalken).
+- **Farben**: Hintergrund mit Deckkraft (unter 100 % scheint die Szene durch), *Titelbalken* (auch die Linie über der
+  Gesamtzeit) und *Schrift im Titelbalken*, Rahmen, Text, *Gedämpft* („Pausiert“ am aktiven Spiel, abgeblendete
+  Spiele, Nummern, Fortschritt, Zeiten 00:00), *Akzent* (aktives Spiel, laufende Zeit), *Erledigt* (gewonnene Spiele,
+  Gesamtzeit nach dem Ende, Haken, Zeiten erledigter Spiele, Fortschrittsbalken).
 - **Schrift**: Die Schriften aus der Liste lädt das Overlay automatisch von Google Fonts (OBS braucht dafür Internet).
   „Eigene …“ nimmt eine Schrift, die **auf dem OBS-Rechner installiert** sein muss – sie wird nicht nachgeladen; fehlt
-  sie dort, zeigt OBS eine Standardschrift. Dazu Schriftgröße, Titelgröße und „Schrift für Zeiten“ („wie Text“ oder
+  sie dort, zeigt OBS eine Standardschrift. Dazu Schriftgröße (Spielnamen, Gesamtzeit; die Titelgröße steht unter „Stil“) und „Schrift für Zeiten“ („wie Text“ oder
   eine Monospace-Schrift, damit die Ziffern beim Ticken nicht springen).
 - **Verhalten**: Auto-Scroll läuft **nur, wenn die Liste nicht in die maximale Höhe passt**. Dann scrollt sie endlos
   nach oben (nach dem letzten Spiel kommt wieder das erste). „Scroll-Tempo“ in Pixel pro Sekunde, 0 = kein Auto-Scroll
@@ -307,8 +316,8 @@ So wird ausgewertet:
 ## OBS
 
 1. Overlay-Editor öffnen, Aussehen einstellen. Die Vorschau rechts zeigt das echte Overlay.
-2. In der OBS-Karte auf „Kopieren“ (URL). Die empfohlene Größe (Breite × Höhe) steht darunter, Standard 336 × 576
-   (Box 320 × 560 plus 16 px Platz für den Schatten; ohne Schatten genau die Box-Größe).
+2. In der OBS-Karte auf „Kopieren“ (URL). Die empfohlene Größe (Breite × Höhe) steht darunter, Standard 320 × 560
+   (genau die Box; mit „Schatten unter der Box“ 16 px breiter und höher).
 3. OBS: „Quellen“ → „+“ → „Browser“ → Namen vergeben → „OK“.
 4. URL einfügen, Breite und Höhe wie im Editor angezeigt eintragen, alles andere lassen → „OK“.
 

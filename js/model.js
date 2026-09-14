@@ -46,27 +46,48 @@ export const OVERLAY_FONTS = [
   'IBM Plex Mono', 'JetBrains Mono', 'Roboto Mono',
 ];
 
+/** Vorlagen im Overlay-Editor: setzen nur Aufbau/Form, nicht Titel, Schrift oder Farben */
+export const OVERLAY_PRESETS = {
+  bar: {          // Standard: roter Titelbalken, Namen fett mit Umbruch, Gesamtzeit mit Status unten (zentriert)
+    headerStyle: 'bar', totalPosition: 'bottom', showTotalStatus: true, centerTotal: true, wrapNames: true, boldNames: true,
+    showProgress: false, showNumbers: false, showGameTimes: false, radius: 0, borderWidth: 0, shadow: false,
+  },
+  classic: {      // frühere Darstellung: Titel als Text, Zeiten je Spiel, Nummern, Gesamtzeit oben
+    headerStyle: 'plain', totalPosition: 'top', showTotalStatus: false, centerTotal: false, wrapNames: false, boldNames: false,
+    showProgress: true, showNumbers: true, showGameTimes: true, radius: 10, borderWidth: 1, shadow: true,
+  },
+};
+
 export const OVERLAY_DEFAULTS = {
   // Inhalt
   title: '',              // leer → Name der Challenge
   showTitle: true,
   showTotal: true,
-  showProgress: true,     // "3 / 22"
-  showNumbers: true,      // Nummerierung der Spiele
-  showGameTimes: true,
+  showProgress: false,    // "3 / 22"
+  showNumbers: false,     // Nummerierung der Spiele
+  showGameTimes: false,
   showDone: true,         // erledigte Spiele anzeigen
   doneStyle: 'strike',    // 'strike' | 'check' | 'dim'
   pinActive: true,        // aktives Spiel oben anpinnen
   activeLabel: 'Läuft',   // kleines Label am aktiven Spiel ('' = keins)
+  // Stil
+  headerStyle: 'bar',     // 'bar' = Titel im farbigen Balken | 'plain' = Titel als Text
+  totalPosition: 'bottom', // 'bottom' = Gesamtzeit unter der Liste | 'top' = im Kopf
+  showTotalStatus: true,  // „– pausiert“ / „– läuft“ / „– beendet“ hinter der Gesamtzeit
+  centerTotal: true,      // Gesamtzeit unten zentriert (sonst linksbündig)
+  wrapNames: true,        // lange Spielnamen umbrechen statt mit … kürzen
+  boldNames: true,
   // Größe & Form
   width: 320,
   maxHeight: 560,
   padding: 14,
   gap: 6,
-  radius: 10,
-  borderWidth: 1,
-  shadow: true,
+  radius: 0,
+  borderWidth: 0,
+  shadow: false,
   // Farben
+  barColor: '#c70039',    // Titelbalken und Linie über der Gesamtzeit
+  barTextColor: '#ffffff',
   bgColor: '#0a0a0a',
   bgOpacity: 0.92,           // rote Schrift bleibt auch über hellen Spielszenen lesbar
   borderColor: '#2a2a2e',

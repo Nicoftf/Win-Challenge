@@ -14,7 +14,7 @@
 
 import { boot, html, nothing, live, classMap, model, icons, toast, friendlyError, copyText, overlayUrl } from '../shell.js';
 
-const { OVERLAY_DEFAULTS, OVERLAY_FONTS } = model;
+const { OVERLAY_DEFAULTS, OVERLAY_FONTS, OVERLAY_PRESETS } = model;
 const MONO_FONTS = ['IBM Plex Mono', 'JetBrains Mono', 'Roboto Mono', 'Press Start 2P'];
 const DONE_STYLES = [['strike', 'Durchgestrichen'], ['check', 'Häkchen davor'], ['dim', 'Abgeblendet']];
 const BACKGROUNDS = [['dark', 'Dunkel'], ['light', 'Hell'], ['scene', 'Spielszene']];
@@ -35,7 +35,7 @@ const ui = {
   customFont: false,     // „Eigene…“ im Schriftart-Select gewählt
   copyFrom: '',          // Spieler-ID im „übernehmen von“-Select
   draft: {},             // key → Wert, der gerade bearbeitet/gespeichert wird
-  open: { content: true, size: true, colors: true, font: true, behavior: true },
+  open: { style: true, content: true, size: true, colors: true, font: true, behavior: true },
 };
 
 function loadBg() {
@@ -272,6 +272,39 @@ const group = (id, title, body) => html`
 //  Gruppen
 // ------------------------------------------------------------
 
+/** Vorlage anwenden: ein Schreibvorgang, ersetzt nur Aufbau/Form (siehe OVERLAY_PRESETS) */
+function applyPreset(ctx, id, name) {
+  const patch = OVERLAY_PRESETS[id];
+  if (!patch) return;
+  // Offene Einzeländerungen zuerst abschicken (flush schreibt synchron, bevor es auf den Server wartet),
+  // damit sie die Vorlage nicht danach überschreiben. Nicht auf Bestätigung warten – offline hinge es sonst.
+  flush();
+  for (const k of Object.keys(patch)) delete ui.draft[k];
+  const job = ctx.actions.setOverlay(ctx.playerId, patch);
+  toast(`Vorlage „${name}“ übernommen`);
+  ctx.refresh();
+  job.catch((e) => { toast(friendlyError(e), 'error'); ctx.refresh(); });
+}
+
+const styleGroup = (ctx, s) => html`
+  <div class="field">
+    <span class="label">Vorlage</span>
+    <div class="row-wrap">
+      <button class="btn btn-sm" @click=${() => applyPreset(ctx, 'bar', 'Balken')}>Balken</button>
+      <button class="btn btn-sm" @click=${() => applyPreset(ctx, 'classic', 'Klassisch')}>Klassisch</button>
+    </div>
+    <span class="help">Setzt Aufbau und Form. Titeltext, Schriftart, Größen und Farben bleiben.</span>
+  </div>
+  ${selectField(ctx, s, 'headerStyle', 'Titel als', [['bar', 'farbiger Balken'], ['plain', 'Text']])}
+  ${rangeField(ctx, s, 'titleSize', 'Titelgröße', { min: 10, max: 64 })}
+  ${selectField(ctx, s, 'totalPosition', 'Gesamtzeit steht', [['bottom', 'unter der Liste'], ['top', 'oben rechts']])}
+  <div class="oe-checks">
+    ${checkField(ctx, s, 'centerTotal', 'Gesamtzeit zentrieren', 'nur wenn sie unter der Liste steht')}
+    ${checkField(ctx, s, 'showTotalStatus', 'Status hinter der Gesamtzeit', 'nur unter der Liste')}
+    ${checkField(ctx, s, 'boldNames', 'Spielnamen fett')}
+    ${checkField(ctx, s, 'wrapNames', 'Lange Namen umbrechen', 'sonst mit … gekürzt')}
+  </div>`;
+
 const contentGroup = (ctx, s) => html`
   ${textField(ctx, s, 'title', 'Titel', { placeholder: ctx.room?.meta?.name || 'Win-Challenge', help: 'Leer = Name der Challenge.' })}
   <div class="oe-checks">
@@ -284,7 +317,7 @@ const contentGroup = (ctx, s) => html`
   </div>
   ${selectField(ctx, s, 'doneStyle', 'Erledigte darstellen als', DONE_STYLES)}
   ${checkField(ctx, s, 'pinActive', 'Aktives Spiel oben anpinnen', 'bleibt beim Scrollen stehen')}
-  ${textField(ctx, s, 'activeLabel', 'Label am aktiven Spiel', { placeholder: 'kein Label', help: 'Leer = kein Label. Bei Pause steht dort „Pause“.', maxlength: 24 })}`;
+  ${textField(ctx, s, 'activeLabel', 'Label am aktiven Spiel', { placeholder: 'kein Label', help: 'Leer = kein Label. Bei Pause steht dort „Pausiert“.', maxlength: 24 })}`;
 
 const sizeGroup = (ctx, s) => html`
   ${rangeField(ctx, s, 'width', 'Breite', { min: 200, max: 800 })}
@@ -298,16 +331,17 @@ const sizeGroup = (ctx, s) => html`
 const colorGroup = (ctx, s) => html`
   ${colorField(ctx, s, 'bgColor', 'Hintergrund')}
   ${rangeField(ctx, s, 'bgOpacity', 'Deckkraft Hintergrund', { min: 0, max: 1, step: 0.01, scale: 100, unit: '%', help: 'Unter 100 % scheint die Szene durch.' })}
+  ${colorField(ctx, s, 'barColor', 'Titelbalken', 'und Linie über der Gesamtzeit')}
+  ${colorField(ctx, s, 'barTextColor', 'Schrift im Titelbalken')}
   ${colorField(ctx, s, 'borderColor', 'Rahmen')}
   ${colorField(ctx, s, 'textColor', 'Text')}
-  ${colorField(ctx, s, 'mutedColor', 'Gedämpft', 'Zeiten 00:00, abgeblendete Spiele')}
+  ${colorField(ctx, s, 'mutedColor', 'Gedämpft', '„Pausiert“, abgeblendete Spiele, Zeiten 00:00')}
   ${colorField(ctx, s, 'accentColor', 'Akzent', 'aktives Spiel')}
-  ${colorField(ctx, s, 'doneColor', 'Erledigt')}`;
+  ${colorField(ctx, s, 'doneColor', 'Erledigt', 'gewonnene Spiele, Gesamtzeit nach dem Ende')}`;
 
 const fontGroup = (ctx, s) => html`
   ${fontFamilyField(ctx, s)}
-  ${rangeField(ctx, s, 'fontSize', 'Schriftgröße', { min: 10, max: 40 })}
-  ${rangeField(ctx, s, 'titleSize', 'Titelgröße', { min: 10, max: 48 })}
+  ${rangeField(ctx, s, 'fontSize', 'Schriftgröße', { min: 10, max: 40, help: 'Spielnamen und Gesamtzeit. Titelgröße steht unter „Stil“.' })}
   ${timerFontField(ctx, s)}`;
 
 const behaviorGroup = (ctx, s) => html`
@@ -461,6 +495,7 @@ boot({
       <div class="oe-layout">
         <div class="oe-main stack">
           <div class="oe-form">
+            ${group('style', 'Stil', styleGroup(ctx, s))}
             ${group('content', 'Inhalt', contentGroup(ctx, s))}
             ${group('size', 'Größe', sizeGroup(ctx, s))}
             ${group('colors', 'Farben', colorGroup(ctx, s))}

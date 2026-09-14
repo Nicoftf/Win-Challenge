@@ -100,7 +100,12 @@ sofort für alle nicht überschriebenen Werte.
 - **Overlay-Größe:** Box = `width × maxHeight`. Mit Schatten wird die OBS-Quelle 16 px breiter und höher
   (`SHADOW_SPACE` in overlay-editor.js muss zu `--shadow-space` in overlay.js passen).
 - **Overlay-Einstellungen:** jeder Schlüssel in `OVERLAY_DEFAULTS` muss im Editor angeboten und im Overlay umgesetzt
-  werden, mit gleichem Typ (Zahlen als Zahl speichern). Neue Einstellung = model.js + overlay-editor.js + overlay.js.
+  werden, mit gleichem Typ (Zahlen als Zahl speichern). Neue Einstellung = model.js + overlay-editor.js + overlay.js
+  (`sanitize`); betrifft sie Aufbau/Form, zusätzlich in beide `OVERLAY_PRESETS` (gleiche Schlüssel, `npm test` prüft
+  das). Einschnittige Schriften nicht künstlich fetten (`font-synthesis: none` auf `.ov`). Standard-Look = Vorlage `OVERLAY_PRESETS.bar` (Nutzerwunsch nach Vorbild einer anderen Win-Challenge:
+  Titelbalken in `barColor`, fette umgebrochene Namen, Gesamtzeit mit Status unten). Die Werte in `OVERLAY_PRESETS.bar`
+  müssen den Defaults entsprechen; `classic` = alte Darstellung. Vorlagen setzen nie Titel, Schrift oder Farben.
+  Eine Positions-Einstellung (Box innerhalb einer szenengroßen Quelle) wurde gebaut und auf Wunsch wieder entfernt.
 - **Auto-Scroll** läuft über `requestAnimationFrame`. In versteckten Tabs (z. B. ausgeblendetes Vorschau-Panel)
   pausiert der Browser das – dort bewegt sich nichts. Zum Prüfen den Headless-Test nehmen.
 - **Browser-Cache:** ES-Module werden hartnäckig gecacht. Immer `npm run serve` (sendet `no-store`) statt eines

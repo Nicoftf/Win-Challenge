@@ -111,6 +111,12 @@ function sanitize(s) {
     doneStyle: ['strike', 'check', 'dim'].includes(s.doneStyle) ? s.doneStyle : D.doneStyle,
     pinActive: bool(s.pinActive, D.pinActive),
     activeLabel: String(s.activeLabel ?? D.activeLabel).trim(),
+    headerStyle: ['bar', 'plain'].includes(s.headerStyle) ? s.headerStyle : D.headerStyle,
+    totalPosition: ['bottom', 'top'].includes(s.totalPosition) ? s.totalPosition : D.totalPosition,
+    showTotalStatus: bool(s.showTotalStatus, D.showTotalStatus),
+    centerTotal: bool(s.centerTotal, D.centerTotal),
+    wrapNames: bool(s.wrapNames, D.wrapNames),
+    boldNames: bool(s.boldNames, D.boldNames),
     width: num(s.width, D.width, 120, 2000),
     maxHeight: num(s.maxHeight, D.maxHeight, 60, 3000),
     padding: num(s.padding, D.padding, 0, 80),
@@ -118,6 +124,8 @@ function sanitize(s) {
     radius: num(s.radius, D.radius, 0, 100),
     borderWidth: num(s.borderWidth, D.borderWidth, 0, 20),
     shadow: bool(s.shadow, D.shadow),
+    barColor: color(s.barColor, D.barColor),
+    barTextColor: color(s.barTextColor, D.barTextColor),
     bgColor: color(s.bgColor, D.bgColor),
     bgOpacity: num(s.bgOpacity, D.bgOpacity, 0, 1),
     borderColor: color(s.borderColor, D.borderColor),
@@ -206,7 +214,7 @@ function row(v, g, idx, pinned = false) {
   const running = model.timerRunning(t);
   const isActive = g.id === v.activeId;
   const val = model.timerValue(t, now());
-  const labelText = isActive ? (running ? s.activeLabel : 'Pause') : '';
+  const labelText = isActive ? (running ? s.activeLabel : 'Pausiert') : '';   // gleiches Wort wie im Fuß
   const cls = {
     'ov-row': true,
     active: isActive,
@@ -230,20 +238,41 @@ function row(v, g, idx, pinned = false) {
 
 function head(v) {
   const s = v.settings;
-  if (!s.showTitle && !s.showTotal && !s.showProgress) return nothing;
+  const bar = s.headerStyle === 'bar';
+  const totalTop = s.showTotal && s.totalPosition === 'top';
+  const textTitle = s.showTitle && !bar;          // Titel als Text im Kopf (sonst im Balken)
   const finished = !!v.run.total?.finished;
   const pct = v.total ? Math.round((v.doneCount / v.total) * 100) : 0;
   return html`
-    <div class="ov-head">
-      ${s.showTitle || s.showProgress ? html`
-        <div class="ov-head-main">
-          ${s.showTitle ? html`<div class="ov-title">${s.title || v.name}</div>` : nothing}
-          ${s.showProgress ? html`<div class="ov-progress">${v.doneCount} / ${v.total}</div>` : nothing}
-        </div>` : nothing}
-      ${s.showTotal ? html`
-        <div class=${classMap({ 'ov-total': true, finished })} data-timer="total"></div>` : nothing}
-    </div>
+    ${s.showTitle && bar ? html`<div class="ov-titlebar">${s.title || v.name}</div>` : nothing}
+    ${textTitle || s.showProgress || totalTop ? html`
+      <div class="ov-head">
+        ${textTitle || s.showProgress ? html`
+          <div class="ov-head-main">
+            ${textTitle ? html`<div class="ov-title">${s.title || v.name}</div>` : nothing}
+            ${s.showProgress ? html`<div class="ov-progress">${v.doneCount} / ${v.total}</div>` : nothing}
+          </div>` : nothing}
+        ${totalTop ? html`
+          <div class=${classMap({ 'ov-total': true, finished })} data-timer="total"></div>` : nothing}
+      </div>` : nothing}
     ${s.showProgress && v.total ? html`<div class="ov-bar"><span style="width:${pct}%"></span></div>` : nothing}`;
+}
+
+/** Status der Gesamtzeit für „– pausiert“ usw. ('' = noch nicht gestartet) */
+function totalStatus(total) {
+  if (total?.finished) return 'beendet';
+  if (model.timerRunning(total)) return 'läuft';
+  return (total?.elapsed || 0) > 0 ? 'pausiert' : '';
+}
+
+function foot(v) {
+  const s = v.settings;
+  if (!s.showTotal || s.totalPosition !== 'bottom') return nothing;
+  const status = s.showTotalStatus ? totalStatus(v.run.total) : '';
+  return html`
+    <div class=${classMap({ 'ov-foot': true, centered: s.centerTotal, finished: !!v.run.total?.finished })}>
+      <span class="ov-foot-time" data-timer="total"></span>${status ? html`<span class="ov-foot-status"><span class="ov-foot-sep">–</span>${status}</span>` : nothing}
+    </div>`;
 }
 
 function box(v) {
@@ -262,6 +291,8 @@ function box(v) {
     '--line': rgba(s.mutedColor, 0.25),
     '--accent': s.accentColor,
     '--accent-soft': rgba(s.accentColor, 0.1),
+    '--barc': s.barColor,
+    '--bart': s.barTextColor,
     '--done': s.doneColor,
     '--font': fontStack(s.fontFamily),
     '--fs': `${s.fontSize}px`,
@@ -288,8 +319,9 @@ function box(v) {
       ${repeat(rows, (x) => x.g.id, (x) => row(v, x.g, x.idx))}
     </div>`;
 
+  const cls = { ov: true, 'ov-barstyle': s.headerStyle === 'bar', 'ov-wrap': s.wrapNames, 'ov-bold': s.boldNames };
   return html`
-    <div class="ov" style=${styleMap(style)}>
+    <div class=${classMap(cls)} style=${styleMap(style)}>
       ${head(v)}
       ${pinActive ? row(v, active.g, active.idx, true) : nothing}
       ${v.games.length === 0
@@ -301,6 +333,7 @@ function box(v) {
               ${ui.overflow ? list(true) : nothing}
             </div>
           </div>` : nothing)}
+      ${foot(v)}
     </div>`;
 }
 

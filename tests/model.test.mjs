@@ -205,6 +205,11 @@ await A.copyOverlay(p1, p2); await tick();
 eq(m.overlaySettings(room, p2).width, 400, 'Overlay kopiert');
 await A.resetOverlay(p1); await tick();
 eq(m.overlaySettings(room, p1).width, m.OVERLAY_DEFAULTS.width, 'Overlay zurückgesetzt');
+// Vorlagen: „Balken“ = Standard, „Klassisch“ setzt dieselben Schlüssel, nur existierende
+eq(Object.entries(m.OVERLAY_PRESETS.bar).filter(([k, v]) => m.OVERLAY_DEFAULTS[k] !== v), [], 'Vorlage Balken entspricht dem Standard');
+eq(Object.keys(m.OVERLAY_PRESETS.classic).sort(), Object.keys(m.OVERLAY_PRESETS.bar).sort(), 'Vorlagen haben dieselben Schlüssel');
+eq(Object.keys(m.OVERLAY_PRESETS.classic).filter((k) => !(k in m.OVERLAY_DEFAULTS) || typeof m.OVERLAY_PRESETS.classic[k] !== typeof m.OVERLAY_DEFAULTS[k]), [], 'Vorlagen-Schlüssel existieren mit gleichem Typ');
+eq(['title', 'fontFamily', 'textColor', 'barColor', 'fontSize'].filter((k) => k in m.OVERLAY_PRESETS.bar), [], 'Vorlagen setzen weder Titel, Schrift noch Farben');
 
 // --- Raum / Spieler ---
 await A.renameRoom('x'.repeat(200)); await tick();

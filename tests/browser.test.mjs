@@ -210,6 +210,8 @@ try {
   await b.goto(`${BASE}overlay.html?room=${seed.key}&player=${seed.nico}`, 1200);
   const ov = await b.eval(`({
     rect: (() => { const r = document.querySelector('.ov').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })(),
+    titlebar: document.querySelector('.ov-titlebar')?.textContent.trim(),
+    foot: document.querySelector('.ov-foot')?.textContent.replace(/\\s+/g, ' ').trim(),
     bg: getComputedStyle(document.body).backgroundColor,
     pinned: (() => { const p = document.querySelector('.ov-row.pinned'); return p ? { title: p.querySelector('.ov-name').textContent, inTrack: !!p.closest('.ov-track'), label: p.querySelector('.ov-label')?.textContent } : null; })(),
     dup: [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && e.textContent === 'Celeste').length,
@@ -224,6 +226,7 @@ try {
     await sleep(700);
   }
   check(y[0] === 0 && y[y.length - 1] < -20, 'Auto-Scroll: erst Pause, dann Bewegung', y);
+  check(!!ov.titlebar && /^\d+:\d\d:\d\d\s*–\s*läuft$/.test(ov.foot || ''), 'Titelbalken und Gesamtzeit mit Status unten', { titlebar: ov.titlebar, foot: ov.foot });
   await b.shot(SHOTS + 'overlay.png', { x: 0, y: 0, width: 360, height: 340 });
 
   await b.goto(`${BASE}overlay.html`, 1000);
