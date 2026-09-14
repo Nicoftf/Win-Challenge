@@ -1,0 +1,17 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$room": {
+        ".read": "$room.length >= 16 && $room.length <= 32 && $room.matches(/^[A-Z0-9]+$/)",
+        ".write": "$room.length >= 16 && $room.length <= 32 && $room.matches(/^[A-Z0-9]+$/)",
+        "meta": {
+          "name": {
+            ".validate": "newData.isString() && newData.val().length <= 80"
+          }
+        }
+      }
+    }
+  }
+}

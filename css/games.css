@@ -1,0 +1,107 @@
+/* ============================================================
+   games.css – Seite „Spiele & Zeiten“ (index.html)
+   Ergänzt base.css; keine eigenen Buttons/Inputs.
+   ============================================================ */
+
+/* ---------- Gemeinsame Muster: Seitenkopf, Hinweis, Klappbereich ----------
+   Identisch in games.css, voting.css und overlay-editor.css (base.css bleibt unverändert).
+   Änderungen bitte in allen drei Dateien gleich machen. */
+.page-head { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.page-head .pill { align-self: center; }
+
+.note { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); color: var(--text-muted); font-size: 13px; line-height: 1.45; }
+.note > .icon { flex: none; margin-top: 1px; }
+.note a { color: var(--text); font-weight: 500; }
+.note-warn { background: #1f1c12; border-color: rgba(216, 197, 138, 0.22); color: #d8c58a; }
+.note-lock { border-color: rgba(229, 83, 75, 0.35); color: #f0a9a4; }
+.note-ok { border-color: rgba(86, 194, 113, 0.35); color: var(--green); }
+.note-ok a:hover { color: var(--green); }
+
+.fold { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elev); }
+.fold > summary { list-style: none; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 14px; font-weight: 600; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary .icon { color: var(--text-muted); flex: none; }
+.fold > summary .chev { margin-left: auto; display: inline-flex; transition: transform .15s; }
+.fold > summary:hover .chev .icon { color: var(--text); }
+.fold[open] > summary { border-bottom: 1px solid var(--border); }
+.fold[open] > summary .chev { transform: rotate(180deg); }
+.fold-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------- Gesamtzeit-Karte ---------- */
+.total-card { margin-bottom: 24px; }
+.total-top { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.total-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.total-head { font-size: 14px; }
+.total-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.total-progress { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.total-progress .progress { flex: 1; }
+.total-progress .count { flex: none; min-width: 110px; }
+
+.others { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.other { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
+.other-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+.others-empty { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+/* ---------- Spieleliste ---------- */
+/* Menüs müssen aus der Liste herausragen dürfen */
+.game-list { overflow: visible; }
+.game-list > .list-row:first-child { border-radius: 9px 9px 0 0; }
+.game-list > .list-row:last-child { border-radius: 0 0 9px 9px; }
+.game-list > .list-row:only-child { border-radius: 9px; }
+
+.game-row .handle { color: var(--text-faint); cursor: grab; display: inline-flex; padding: 6px 2px; margin-left: -6px; flex: none; }
+.game-row .handle:active { cursor: grabbing; }
+.game-row:hover .handle { color: var(--text-muted); }
+.game-row.dragging { opacity: .4; }
+.game-row.drag-over { outline: 2px solid var(--accent); outline-offset: -2px; }
+.game-row .title { cursor: default; }
+.game-row .title-edit { flex: 1; min-width: 0; }
+.game-row .done-mark { display: inline-flex; flex: none; }
+.game-row .state-pill { flex: none; }
+.game-row .game-time { min-width: 64px; text-align: right; font-size: 14px; flex: none; }
+.game-row .actions { align-items: center; }
+.list-hint { margin-top: 8px; }
+
+.menu-list button:disabled { opacity: .4; cursor: default; }
+.menu-list button:disabled:hover { background: none; }
+
+/* ---------- Hinzufügen ---------- */
+.add-form { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+.add-form .input { flex: 1 1 220px; }
+.add-multi { margin-top: 14px; }
+.games-empty { margin-bottom: 4px; }
+.games-empty p + p { margin-top: 6px; }
+.games-empty .empty-link { margin-top: 12px; }
+
+/* ---------- Untere Karten ---------- */
+.bottom-grid { margin-top: 4px; }
+.player-rows { display: flex; flex-direction: column; }
+.player-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); min-height: 42px; }
+.player-row:first-child { border-top: 0; }
+.player-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.add-player { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.overlay-actions { margin-top: 4px; }
+
+/* ---------- Schmale Screens ---------- */
+@media (max-width: 600px) {
+  .timer-xl { font-size: 36px; }
+  .total-actions { margin-left: 0; width: 100%; }
+  /* Menü rechts halten, sonst klappt die Liste (right:0) links aus dem Bildschirm */
+  .total-actions .menu { margin-left: auto; }
+  .game-row .handle { display: none; }
+  .game-row .lbl { display: none; }
+  .list-row { padding: 8px 10px; gap: 8px; }
+  .game-row .game-time { min-width: 48px; font-size: 13px; }
+  .other-name { max-width: 100px; }
+  .player-row .lbl { display: none; }
+}
+@media (max-width: 420px) {
+  .game-row .state-pill { display: none; }
+  .game-row .num { width: 20px; }
+}
+
+/* ---------- Ruhige Zeilen: Farbe nur am aktiven Spiel ---------- */
+.game-row .btn-start .icon { color: var(--accent); }
+.game-row .btn-win .icon { color: var(--green); }
+.game-row .btn-start, .game-row .btn-win { background: transparent; border-color: var(--border-strong); }
+.game-row .btn-start:hover, .game-row .btn-win:hover { background: var(--bg-active); }

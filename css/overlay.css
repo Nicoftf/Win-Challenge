@@ -1,0 +1,177 @@
+/* ============================================================
+   overlay.css – OBS Browser-Source (overlay.html)
+   Alles Konfigurierbare kommt als CSS-Variable vom JS (.ov style="--…").
+   Body ist transparent, damit OBS die Szene durchscheinen lässt.
+   ============================================================ */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+}
+body {
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+#app { margin: 0; }
+
+/* ---------- Hinweisbox (fehlende Parameter, Fehler) ---------- */
+.ov-hint {
+  box-sizing: border-box;
+  width: 340px;
+  max-width: 100vw;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #3a3e47;
+  border-radius: 6px;
+  background: #1a1b1e;
+  color: #d5d7dc;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ov-hint-title { font-weight: 600; color: #f2c14e; margin-bottom: 2px; }
+.ov-hint-sub { color: #9a9ea8; margin-top: 4px; font-size: 12px; }
+.ov-hint code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #e9e9e6; }
+
+/* ---------- Die Box ---------- */
+.ov {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  /* Box = genau width × maxHeight. Bei shadow=true ist die OBS-Quelle um
+     --shadow-space breiter und höher (Editor rechnet das in die Größe ein),
+     damit der Schatten rechts/unten nicht abgeschnitten wird.
+     Oben links bleibt die Box ohne Außenabstand. */
+  width: var(--w);
+  max-height: var(--maxh);
+  margin: 0 var(--shadow-space, 0px) var(--shadow-space, 0px) 0;
+  padding: var(--pad);
+  gap: var(--gap);
+  border: var(--bw) solid var(--bc);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs);
+  line-height: 1.3;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.ov * { box-sizing: border-box; min-width: 0; }
+
+/* ---------- Kopf ---------- */
+.ov-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: none;
+  padding-bottom: calc(var(--gap) + 2px);
+  border-bottom: 1px solid var(--line);
+}
+.ov-head-main { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
+.ov-title {
+  font-size: var(--ts);
+  font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ov-progress { color: var(--muted); font-size: calc(var(--fs) * 0.85); line-height: 1.3; }
+.ov-total {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--tf);
+  font-variant-numeric: tabular-nums;
+  font-size: calc(var(--ts) * 1.15);
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.ov-total.finished { color: var(--done); }
+.ov-bar {
+  flex: none;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+  margin-top: calc(var(--gap) * -0.5);
+}
+.ov-bar > span { display: block; height: 100%; background: var(--done); }
+
+/* ---------- Zeilen ---------- */
+.ov-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: none;
+}
+.ov-num {
+  flex: none;
+  min-width: 1.6em;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.ov-check { flex: none; display: inline-flex; color: var(--done); align-self: center; }
+.ov-check svg { width: 1em; height: 1em; display: block; }
+.ov-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ov-label {
+  flex: none;
+  font-size: calc(var(--fs) * 0.7);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.ov-row.paused .ov-label { color: var(--muted); }
+.ov-time {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--tf);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ov-time.zero { color: var(--muted); }
+.ov-time.running { color: var(--accent); }
+.ov-time.done { color: var(--done); }
+
+/* aktives Spiel (gepinnt oder in der Liste) */
+.ov-row.active {
+  padding: 5px 8px 5px 9px;
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.ov-row.active .ov-num { color: var(--accent); }
+.ov-row.active.paused { border-left-color: var(--muted); background: var(--line); }
+.ov-row.active.paused .ov-num { color: var(--muted); }
+
+/* erledigte Spiele */
+.ov-row.done-strike .ov-name { text-decoration: line-through; color: var(--done); }
+.ov-row.done-dim { opacity: 0.6; }
+.ov-row.done-dim .ov-name { color: var(--muted); }
+
+/* ---------- Liste + Auto-Scroll ---------- */
+.ov-scroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+.ov-track {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  will-change: transform;
+}
+.ov-list { display: flex; flex-direction: column; gap: var(--gap); }
+.ov-empty { color: var(--muted); }

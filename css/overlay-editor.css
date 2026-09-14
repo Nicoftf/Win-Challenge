@@ -1,0 +1,100 @@
+/* ============================================================
+   overlay-editor.css – Seite „Overlay anpassen“
+   Links Formular (~360px), rechts Live-Vorschau; unter 900px untereinander.
+   ============================================================ */
+
+/* ---------- Gemeinsame Muster: Seitenkopf, Hinweis, Klappbereich ----------
+   Identisch in games.css, voting.css und overlay-editor.css (base.css bleibt unverändert).
+   Änderungen bitte in allen drei Dateien gleich machen. */
+.page-head { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.page-head .pill { align-self: center; }
+
+.note { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); color: var(--text-muted); font-size: 13px; line-height: 1.45; }
+.note > .icon { flex: none; margin-top: 1px; }
+.note a { color: var(--text); font-weight: 500; }
+.note-warn { background: #1f1c12; border-color: rgba(216, 197, 138, 0.22); color: #d8c58a; }
+.note-lock { border-color: rgba(229, 83, 75, 0.35); color: #f0a9a4; }
+.note-ok { border-color: rgba(86, 194, 113, 0.35); color: var(--green); }
+.note-ok a:hover { color: var(--green); }
+
+.fold { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elev); }
+.fold > summary { list-style: none; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 14px; font-weight: 600; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary .icon { color: var(--text-muted); flex: none; }
+.fold > summary .chev { margin-left: auto; display: inline-flex; transition: transform .15s; }
+.fold > summary:hover .chev .icon { color: var(--text); }
+.fold[open] > summary { border-bottom: 1px solid var(--border); }
+.fold[open] > summary .chev { transform: rotate(180deg); }
+.fold-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+.oe-layout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.oe-main { min-width: 0; }
+.oe-side { min-width: 0; position: sticky; top: 68px; }
+
+/* ---------- Formular: Gruppen als Klappbereiche (.fold) ---------- */
+.oe-form { display: flex; flex-direction: column; gap: 8px; }
+.oe-group > .fold-body { gap: 12px; }
+
+.oe-checks { display: flex; flex-direction: column; gap: 7px; }
+.oe-check .help { margin-left: 6px; }
+
+.oe-label-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.oe-label-row .help { flex: 1 1 auto; }
+
+.oe-range { display: grid; grid-template-columns: minmax(0, 1fr) 100px; gap: 10px; align-items: center; }
+.oe-num-wrap { display: flex; align-items: center; gap: 4px; }
+.oe-num { width: 60px; text-align: right; padding-right: 6px; -moz-appearance: textfield; appearance: textfield; }
+.oe-num::-webkit-outer-spin-button, .oe-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.oe-unit { font-size: 12px; color: var(--text-faint); width: 34px; white-space: nowrap; }
+
+.oe-color { display: flex; align-items: center; gap: 10px; }
+.oe-color input[type=color] { flex: none; }
+.oe-color .grow .label { display: block; }
+.oe-hex { width: 92px; flex: none; }
+
+.oe-actions { padding: 14px; }
+
+/* ---------- Vorschau ---------- */
+.oe-preview-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.oe-preview-head h2 { margin-right: 2px; }
+.oe-stage {
+  position: relative; overflow: auto;
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  max-height: calc(100vh - 220px); min-height: 200px;
+}
+.oe-stage-inner { display: inline-block; min-width: 100%; padding: 20px; position: relative; z-index: 1; }
+.oe-stage.dark { background: #0b0c0f; }
+.oe-stage.light { background: #e6e6e1; }
+.oe-stage.scene { background: #33402f; }
+.oe-stage.scene::before { content: ''; position: absolute; left: 46%; top: 12%; width: 40%; height: 44%; background: #5c5346; }
+.oe-stage.scene::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 22%; background: #26301f; }
+.oe-frame {
+  display: block; border: 0; background: transparent;
+  /* Chromium rendert ein iframe opak (weiße Canvas), wenn sich das Farbschema von
+     Editor-Seite (color-scheme: dark) und Overlay-Dokument (normal) unterscheidet.
+     Deshalb hier explizit dasselbe Schema wie das Overlay-Root. */
+  color-scheme: normal;
+}
+.oe-preview > .help { margin-top: 10px; display: block; }
+
+/* ---------- OBS-Karte ---------- */
+.oe-url { flex: 1; min-width: 0; font-size: 13px; }
+.oe-size { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.oe-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.oe-steps li::marker { color: var(--text-faint); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .oe-layout { grid-template-columns: 1fr; }
+  .oe-side { position: static; order: -1; }
+  .oe-stage { max-height: 55vh; }
+}
+@media (max-width: 480px) {
+  .oe-range { grid-template-columns: minmax(0, 1fr) 92px; }
+  .oe-hex { width: 84px; }
+}

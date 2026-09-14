@@ -1,0 +1,134 @@
+/* ============================================================
+   voting.css – Seite "Voting" (nutzt base.css, ergänzt nur Seitenspezifisches)
+   ============================================================ */
+
+/* ---------- Gemeinsame Muster: Seitenkopf, Hinweis, Klappbereich ----------
+   Identisch in games.css, voting.css und overlay-editor.css (base.css bleibt unverändert).
+   Änderungen bitte in allen drei Dateien gleich machen. */
+.page-head { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.page-head .pill { align-self: center; }
+
+.note { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); color: var(--text-muted); font-size: 13px; line-height: 1.45; }
+.note > .icon { flex: none; margin-top: 1px; }
+.note a { color: var(--text); font-weight: 500; }
+.note-warn { background: #1f1c12; border-color: rgba(216, 197, 138, 0.22); color: #d8c58a; }
+.note-lock { border-color: rgba(229, 83, 75, 0.35); color: #f0a9a4; }
+.note-ok { border-color: rgba(86, 194, 113, 0.35); color: var(--green); }
+.note-ok a:hover { color: var(--green); }
+
+.fold { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elev); }
+.fold > summary { list-style: none; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 14px; font-weight: 600; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary .icon { color: var(--text-muted); flex: none; }
+.fold > summary .chev { margin-left: auto; display: inline-flex; transition: transform .15s; }
+.fold > summary:hover .chev .icon { color: var(--text); }
+.fold[open] > summary { border-bottom: 1px solid var(--border); }
+.fold[open] > summary .chev { transform: rotate(180deg); }
+.fold-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------- Erklärung ---------- */
+.explain { margin-bottom: 24px; }
+.explain .fold-body { color: var(--text-muted); font-size: 14px; gap: 6px; }
+.explain .fold-body b { color: var(--text); font-weight: 500; }
+.explain .v-must { color: var(--accent); }
+.explain .v-yes { color: var(--green); }
+.explain .v-veto { color: var(--red); }
+.explain .v-no { color: #e6a19c; }
+.explain .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.explain .legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+/* ---------- Vorschlagen ---------- */
+.suggest-form { margin-bottom: 10px; }
+.suggest-form .textarea { min-height: 96px; font-family: var(--font); }
+
+/* Budget-Zeile */
+.budget { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+.budget b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.budget .full b { color: var(--accent); }
+.budget .full-veto b { color: var(--red); }
+.budget .sep { color: var(--text-faint); }
+.budget .check { margin-left: auto; font-size: 13px; color: var(--text-muted); }
+@media (max-width: 560px) { .budget .check { margin-left: 0; width: 100%; } }
+
+/* Vorschlagsliste – overflow sichtbar, damit das Zeilenmenü nicht abgeschnitten wird */
+.sug-list { overflow: visible; }
+.sug-list .list-row:first-child { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.sug-list .list-row:last-child { border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.sug { flex-wrap: wrap; }
+.sug .title-wrap { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sug .title-wrap .title { flex: none; }
+.sug .by { font-size: 12px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sug.unrated .title::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint); margin-right: 8px; vertical-align: 2px; }
+.sug .sug-edit { max-width: 420px; }
+.sug .actions { flex: none; }
+/* gesperrtes Zeilenmenü (Voting geschlossen): sichtbar blasser, auch beim Hover */
+.sug .actions .btn:disabled, .list-row:hover .actions .btn:disabled { opacity: .3; background: transparent; }
+
+/* 5er-Stimmgruppe */
+.vote-group .btn { padding: 0 9px; }
+.vote-short { display: none; font-family: var(--mono); font-weight: 600; }
+.vote-group .btn.on.vote-must { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.vote-group .btn.on.vote-yes { background: var(--green-soft); border-color: rgba(86, 194, 113, 0.6); color: var(--green); }
+/* Gleiche Farben wie die Chips in der Ergebnis-Tabelle (.vchip-*) */
+.vote-group .btn.on.vote-meh { background: var(--bg-active); border-color: var(--text-muted); color: var(--text); box-shadow: inset 0 0 0 1px rgba(154, 158, 168, 0.4); }
+.vote-group .btn.on.vote-no { background: rgba(229, 83, 75, 0.08); border-color: rgba(229, 83, 75, 0.6); color: #e6a19c; }
+.vote-group .btn.on.vote-veto { background: var(--red); border-color: var(--red); color: #fff; }
+@media (max-width: 720px) {
+  .vote-long { display: none; }
+  .vote-short { display: inline; }
+  .vote-group .btn { min-width: 36px; padding: 0 6px; }
+}
+@media (max-width: 560px) {
+  .sug .vote-group { order: 3; width: 100%; }
+  .sug .vote-group .btn { flex: 1; }
+  .sug .actions { margin-left: auto; }
+}
+
+.list-foot { margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- Ergebnis ---------- */
+.result-table { min-width: 480px; }
+.result-table td.rank { width: 36px; text-align: right; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.result-table td.game { font-weight: 500; }
+.result-table td.score { width: 70px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.result-table td.status { width: 1%; white-space: nowrap; }
+.result-table tr.out td { color: var(--text-muted); }
+.result-table tr.out td.game { font-weight: 400; }
+.result-table tr.veto td { color: var(--text-faint); }
+.result-table tr.veto td.game { font-weight: 400; text-decoration: line-through; text-decoration-color: var(--text-faint); }
+.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.chip.chip-empty { border: 1px dashed var(--border-strong); background: transparent; }
+.result-table tr.cut td { padding: 3px 10px; border-bottom: 1px solid var(--border); }
+.cut-line { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.cut-line::before, .cut-line::after { content: ''; flex: 1; height: 1px; background: rgba(242, 193, 78, 0.4); }
+.result-foot { margin-top: 8px; }
+.apply-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+
+/* ---------- Beteiligung ---------- */
+.part-list { display: flex; flex-direction: column; }
+.part-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.part-row:first-child { border-top: 0; padding-top: 0; }
+.part-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.part-row .count { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.part-row .state { width: 16px; flex: none; display: inline-flex; }
+.part-row .state .icon { color: var(--green); }
+
+/* ---------- Einstellungen ---------- */
+.settings .fold-body { gap: 10px; }
+.settings .input-num { width: 88px; }
+.settings .field-row { grid-template-columns: 130px 1fr; }
+@media (max-width: 480px) { .settings .field-row { grid-template-columns: 1fr; gap: 4px; } }
+
+/* ---------- Stimmen im Ergebnis: Farbe = Bedeutung, Spalte = Spieler ---------- */
+.result-table th.vote-head { text-align: center; text-transform: none; letter-spacing: 0; font-size: 12px; white-space: nowrap; padding-left: 4px; padding-right: 4px; }
+.result-table th.vote-head .dot { width: 8px; height: 8px; margin-right: 5px; vertical-align: 0; }
+.vote-head-name { display: inline-block; max-width: 72px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.result-table td.vote-cell { text-align: center; padding-left: 4px; padding-right: 4px; }
+.vchip { min-width: 26px; border: 1px solid transparent; }
+.vchip-must { background: var(--accent-soft); border-color: rgba(242,193,78,.45); color: var(--accent); }
+.vchip-yes  { background: var(--green-soft); border-color: rgba(86,194,113,.35); color: var(--green); }
+.vchip-meh  { background: var(--bg-hover); border-color: var(--border-strong); color: var(--text-muted); }
+.vchip-no   { background: transparent; border-color: rgba(229,83,75,.35); color: #d98a85; }
+.vchip-veto { background: var(--red); border-color: var(--red); color: #fff; }
+.vchip-none { border: 1px dashed var(--border-strong); background: transparent; }
+@media (max-width: 720px) { .vote-head-name { max-width: 28px; } }
