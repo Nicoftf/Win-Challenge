@@ -62,12 +62,12 @@ try {
     rows: document.querySelectorAll('.game-row').length,
     active: document.querySelector('.game-row.active .title')?.textContent,
     progress: document.querySelector('.progress span')?.style.width,
-    others: document.querySelectorAll('.other').length,
+    head: document.querySelector('.total-head')?.textContent.replace(/\\s+/g, ' ').trim(),
   })`);
   check(idx.rows === 15, '15 Spielzeilen', idx.rows);
   check(!!idx.active, 'aktives Spiel markiert', idx.active);
   check(idx.progress === '20%', 'Fortschrittsbalken 3/15 = 20%', idx.progress);
-  check(idx.others === 3, 'Übersicht der 3 anderen Spieler', idx.others);
+  check(/Gesamtzeit.*gemeinsam für alle/.test(idx.head || ''), 'eine gemeinsame Gesamtzeit für alle', idx.head);
 
   const t1 = await b.eval(`document.querySelector('[data-timer="total"]').textContent`);
   await sleep(1300);
@@ -204,7 +204,7 @@ try {
     let room = await s.get(m.roomPath(key));
     const A = m.bindActions(s, key, () => room);
     const g = m.sortedGames(room)[9];
-    await A.startGame(${JSON.stringify(seed.nico)}, g.id);
+    await A.startGame(g.id);
     // ein zu langer Name für die Laufschrift (nicht „Celeste“, das zählt der Duplikat-Check)
     const [long, long2] = m.sortedGames(room).filter((x, i) => i > 10 && x.title !== 'Celeste');
     await A.renameGame(long.id, 'Dangerous Mountain Together (Schneegebiet) 0/1 Hardcore');
@@ -257,6 +257,14 @@ try {
   check(ov.marquee.longMoves && ov.marquee.animated && ov.marquee.sameSpeed && ov.marquee.together && ov.marquee.waitForLongest && ov.marquee.shortStill,
     'Laufschrift: gleich schnell, gemeinsamer Start, Neustart erst wenn der längste Name durch ist', ov.marquee);
   await b.shot(SHOTS + 'overlay.png', { x: 0, y: 0, width: 360, height: 340 });
+
+  // Overlay eines anderen Spielers: dieselben gemeinsamen Zeiten (Gesamtzeit auf die Sekunde, aktives Spiel)
+  const ovState = `({ total: document.querySelector('[data-timer="total"]')?.textContent, pinned: document.querySelector('.ov-row.pinned .ov-name')?.textContent, progress: document.querySelector('.ov-foot')?.textContent.replace(/\\s+/g, ' ').trim() })`;
+  const mine = await b.eval(ovState);
+  await b.goto(`${BASE}overlay.html?room=${seed.key}&player=${seed.ids[1]}`, 1200);
+  const other = await b.eval(ovState);
+  const toSec = (s) => (s || '').split(':').reduce((a, v) => a * 60 + Number(v), 0);
+  check(other.pinned === mine.pinned && Math.abs(toSec(other.total) - toSec(mine.total)) <= 3, 'anderer Spieler sieht dieselben Zeiten', { mine, other });
 
   await b.goto(`${BASE}overlay.html`, 1000);
   const missing = await b.eval(`document.body.innerText.trim().slice(0, 80)`);

@@ -177,7 +177,7 @@ function sampleData() {
 function buildView() {
   const settings = sanitize(model.overlaySettings(room, playerId));
   let games = model.sortedGames(room);
-  let run = model.runOf(room, playerId);
+  let run = model.runOf(room);   // gemeinsame Zeiten; playerId bestimmt nur das Aussehen
   let name = room?.meta?.name || 'Win-Challenge';
   let isSample = false;
   if (preview && games.length === 0) {

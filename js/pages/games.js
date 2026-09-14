@@ -2,7 +2,7 @@
 //  games.js – Seite „Spiele & Zeiten“ (index.html)
 // ============================================================
 //
-//  Oben: Gesamtzeit des aktiven Spielers + Übersicht der anderen.
+//  Oben: gemeinsame Gesamtzeit aller Spieler (runs/team).
 //  Mitte: gemeinsame Spieleliste mit Start/Pause/Gewonnen, Menü,
 //         Inline-Umbenennen, Drag & Drop, Hinzufügen.
 //  Unten: Spieler-Verwaltung und OBS-Overlay-Link.
@@ -26,7 +26,6 @@ const ui = {
 };
 
 const STATE_TEXT  = { idle: 'noch nicht gestartet', running: 'läuft', paused: 'pausiert', finished: 'beendet' };
-const STATE_SHORT = { idle: 'nicht gestartet',      running: 'läuft', paused: 'pausiert', finished: 'fertig' };
 
 /** Zustand der Gesamtzeit eines Runs */
 function totalState(run) {
@@ -82,47 +81,44 @@ function timerEl(cls, key, text) {
 //  Gesamtzeit-Karte
 // ============================================================
 
-function totalCard(ctx, room, run, players) {
+function totalCard(ctx, room, run) {
   const A = ctx.actions;
-  const pid = ctx.playerId;
-  const me = ctx.player || {};
   const state = totalState(run);
-  const prog = model.progressOf(room, pid);
+  const prog = model.progressOf(room);
   const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
-  const others = players.filter((p) => p.id !== pid);
 
   const finish = async () => {
-    const ok = await ctx.confirm('Challenge beenden? Gesamtzeit und laufendes Spiel werden gestoppt. Du kannst sie später wieder aufnehmen.', { okLabel: 'Beenden' });
-    if (ok) await act(() => A.finishChallenge(pid));
+    const ok = await ctx.confirm('Challenge beenden? Gesamtzeit und laufendes Spiel werden für alle gestoppt. Ihr könnt sie später wieder aufnehmen.', { okLabel: 'Beenden' });
+    if (ok) await act(() => A.finishChallenge());
   };
-  // resetRun löscht den ganzen Run: Gesamtzeit, Spielzeiten, Gewonnen-Haken, aktives Spiel
+  // resetRun löscht alle Zeiten: Gesamtzeit, Spielzeiten, Gewonnen-Haken, aktives Spiel
   const reset = async () => {
     const lost = prog.done ? ` (gerade ${prog.done} / ${prog.total} geschafft)` : '';
     const ok = await ctx.confirm(
-      `Deinen Fortschritt komplett zurücksetzen? Alle deine Zeiten und „Gewonnen“-Haken gehen verloren${lost}. Das betrifft nur dich – die Spieleliste und die anderen Spieler bleiben.`,
+      `Fortschritt komplett zurücksetzen? Alle Zeiten und „Gewonnen“-Haken gehen für alle verloren${lost}. Die Spieleliste bleibt.`,
       { danger: true, okLabel: 'Alles zurücksetzen' });
-    if (ok) await act(() => A.resetRun(pid));
+    if (ok) await act(() => A.resetRun());
   };
 
   let buttons;
   switch (state) {
     case 'running':
       buttons = html`
-        <button class="btn" @click=${() => act(() => A.pauseTotal(pid))}>${icons.pause()} Pause</button>
+        <button class="btn" @click=${() => act(() => A.pauseTotal())}>${icons.pause()} Pause</button>
         <button class="btn" @click=${finish}>${icons.flag()} Challenge beenden</button>`;
       break;
     case 'paused':
       buttons = html`
-        <button class="btn btn-primary" @click=${() => act(() => A.startTotal(pid))}>${icons.play()} Weiter</button>
+        <button class="btn btn-primary" @click=${() => act(() => A.startTotal())}>${icons.play()} Weiter</button>
         <button class="btn" @click=${finish}>${icons.flag()} Challenge beenden</button>`;
       break;
     case 'finished':
       buttons = html`
-        <button class="btn" @click=${() => act(() => A.resumeChallenge(pid))}>${icons.play()} Wieder aufnehmen</button>`;
+        <button class="btn" @click=${() => act(() => A.resumeChallenge())}>${icons.play()} Wieder aufnehmen</button>`;
       break;
     default:
       buttons = html`
-        <button class="btn btn-primary" @click=${() => act(() => A.startTotal(pid))}>${icons.play()} Challenge starten</button>`;
+        <button class="btn btn-primary" @click=${() => act(() => A.startTotal())}>${icons.play()} Challenge starten</button>`;
   }
 
   const pillCls = state === 'running' ? 'pill pill-accent' : state === 'finished' ? 'pill pill-green' : 'pill';
@@ -133,16 +129,16 @@ function totalCard(ctx, room, run, players) {
       <div class="total-top">
         <div class="total-main">
           <div class="row-wrap total-head">
-            <span class="dot" style="background:${me.color || 'var(--text-faint)'}"></span>
-            <span class="strong">${me.name || 'Du'}</span>
+            <span class="strong">Gesamtzeit</span>
             <span class=${pillCls}>${STATE_TEXT[state]}</span>
+            <span class="faint small">gemeinsam für alle</span>
           </div>
           ${timerEl(timerCls, 'total', fmtTime(timerValue(run.total, ctx.now), { hours: 'always' }))}
         </div>
         <div class="total-actions">
           ${buttons}
           ${menu([
-            { label: 'Meinen Fortschritt zurücksetzen', icon: icons.reset(), danger: true, run: reset },
+            { label: 'Fortschritt zurücksetzen', icon: icons.reset(), danger: true, run: reset },
           ], 'Mehr')}
         </div>
       </div>
@@ -150,24 +146,6 @@ function totalCard(ctx, room, run, players) {
         <span class="small muted tabular count">${prog.done} / ${prog.total} geschafft</span>
         <div class="progress"><span style="width:${pct}%"></span></div>
       </div>
-      ${others.length ? html`
-        <div class="others">
-          ${others.map((p) => {
-            const r = model.runOf(room, p.id);
-            const pr = model.progressOf(room, p.id);
-            const st = totalState(r);
-            const cls = 'small ' + (st === 'running' ? 'running' : st === 'finished' ? 'done' : '');
-            return html`
-              <div class="other" title="${p.name}: ${STATE_TEXT[st]}">
-                <span class="dot" style="background:${p.color}"></span>
-                <span class="other-name">${p.name}</span>
-                <span class="muted tabular">${pr.done} / ${pr.total}</span>
-                ${timerEl(cls, `player:${p.id}`, fmtTime(timerValue(r.total, ctx.now), { hours: 'always' }))}
-                <span class="faint">${STATE_SHORT[st]}</span>
-              </div>`;
-          })}
-        </div>`
-        : html`<p class="help others-empty">Noch keine anderen Spieler. Den Einladungslink gibt es oben rechts unter „Einladen“.</p>`}
     </section>`;
 }
 
@@ -247,7 +225,6 @@ async function onDrop(e, ctx) {
 // ---------- Zeile ----------
 function gameRow(ctx, run, g, i, n) {
   const A = ctx.actions;
-  const pid = ctx.playerId;
   const t = run.games?.[g.id];
   const done = !!t?.done;
   const running = timerRunning(t);
@@ -257,10 +234,10 @@ function gameRow(ctx, run, g, i, n) {
 
   const resetTime = async () => {
     const ok = await ctx.confirm(`Zeit von „${g.title}“ auf 00:00 setzen?`, { okLabel: 'Zurücksetzen' });
-    if (ok) await act(() => A.resetGameTime(pid, g.id));
+    if (ok) await act(() => A.resetGameTime(g.id));
   };
   const remove = async () => {
-    const ok = await ctx.confirm(`„${g.title}“ entfernen? Das Spiel verschwindet für alle Spieler – samt ihrer Zeiten dafür.`, { danger: true, okLabel: 'Entfernen' });
+    const ok = await ctx.confirm(`„${g.title}“ entfernen? Das Spiel verschwindet für alle – samt seiner Zeit.`, { danger: true, okLabel: 'Entfernen' });
     if (ok) await act(() => A.removeGame(g.id));
   };
 
@@ -287,15 +264,15 @@ function gameRow(ctx, run, g, i, n) {
       ${timerEl(timerCls, `game:${g.id}`, fmtTime(timerValue(t, ctx.now)))}
       <div class="actions">
         ${done
-          ? html`<button class="btn btn-sm" title="Als nicht erledigt markieren" @click=${() => act(() => A.unfinishGame(pid, g.id))}>
+          ? html`<button class="btn btn-sm" title="Als nicht erledigt markieren" @click=${() => act(() => A.unfinishGame(g.id))}>
               ${icons.reset()}<span class="lbl">Zurück</span></button>`
           : html`
             ${running
-              ? html`<button class="btn btn-sm" title="Spiel pausieren" @click=${() => act(() => A.pauseGame(pid, g.id))}>
+              ? html`<button class="btn btn-sm" title="Spiel pausieren" @click=${() => act(() => A.pauseGame(g.id))}>
                   ${icons.pause()}<span class="lbl">Pause</span></button>`
-              : html`<button class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-start'}" title=${isActive ? 'Spiel fortsetzen' : 'Spiel starten'} @click=${() => act(() => A.startGame(pid, g.id))}>
+              : html`<button class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-start'}" title=${isActive ? 'Spiel fortsetzen' : 'Spiel starten'} @click=${() => act(() => A.startGame(g.id))}>
                   ${icons.play()}<span class="lbl">${isActive ? 'Weiter' : 'Start'}</span></button>`}
-            <button class="btn btn-sm ${isActive ? 'btn-success' : 'btn-win'}" title="Als gewonnen markieren" @click=${() => act(() => A.finishGame(pid, g.id))}>
+            <button class="btn btn-sm ${isActive ? 'btn-success' : 'btn-win'}" title="Als gewonnen markieren" @click=${() => act(() => A.finishGame(g.id))}>
               ${icons.check()}<span class="lbl">Gewonnen</span></button>`}
         ${menu([
           { label: 'Umbenennen', icon: icons.edit(), run: () => startEdit(ctx, g) },
@@ -432,7 +409,7 @@ async function renamePlayer(ctx, p) {
   await act(() => ctx.actions.renamePlayer(p.id, v));
 }
 async function removePlayer(ctx, p) {
-  const ok = await ctx.confirm(`${p.name} entfernen? Zeiten, Overlay-Einstellungen und Voting-Stimmen dieses Spielers werden gelöscht.`, { danger: true, okLabel: 'Entfernen' });
+  const ok = await ctx.confirm(`${p.name} entfernen? Overlay-Einstellungen und Voting-Stimmen dieses Spielers werden gelöscht. Die gemeinsamen Zeiten bleiben.`, { danger: true, okLabel: 'Entfernen' });
   if (ok) await act(() => ctx.actions.removePlayer(p.id));
 }
 async function addPlayer(ctx) {
@@ -485,7 +462,7 @@ function overlayCard(ctx) {
   return html`
     <section class="card stack-sm">
       <h2>OBS-Overlay</h2>
-      <p class="muted small">Deine Liste und Zeiten als Browser-Quelle in OBS. Jeder Spieler hat sein eigenes Overlay.</p>
+      <p class="muted small">Liste und gemeinsame Zeiten als Browser-Quelle in OBS. Das Aussehen stellt jeder für sein Overlay selbst ein.</p>
       <div class="row-wrap overlay-actions">
         <button class="btn" @click=${copy}>${icons.copy()} Overlay-URL kopieren</button>
         <a class="btn btn-ghost" href="overlay-editor.html">${icons.edit()} Overlay anpassen</a>
@@ -506,15 +483,15 @@ boot({
 
   render(ctx) {
     const room = ctx.room || {};
-    const run = model.runOf(room, ctx.playerId);
+    const run = model.runOf(room);
     const games = model.sortedGames(room);
     const players = model.sortedPlayers(room);
     return html`
       <div class="page-head">
         <h1>Spiele & Zeiten</h1>
-        <span class="muted small">Liste für alle · Zeiten und Haken für jeden einzeln</span>
+        <span class="muted small">Liste, Zeiten und Haken gelten für alle</span>
       </div>
-      ${totalCard(ctx, room, run, players)}
+      ${totalCard(ctx, room, run)}
       ${gamesSection(ctx, room, run, games)}
       <div class="grid-2 bottom-grid">
         ${playersCard(ctx, players)}
@@ -525,7 +502,7 @@ boot({
   // alle 250 ms: nur Timer-Texte per DOM aktualisieren
   tick(ctx) {
     const room = ctx.room || {};
-    const run = model.runOf(room, ctx.playerId);
+    const run = model.runOf(room);
     const els = document.querySelectorAll('[data-timer]');
     for (const el of els) {
       const key = el.dataset.timer;
@@ -534,8 +511,6 @@ boot({
         text = fmtTime(timerValue(run.total, ctx.now), { hours: 'always' });
       } else if (key.startsWith('game:')) {
         text = fmtTime(timerValue(run.games?.[key.slice(5)], ctx.now));
-      } else if (key.startsWith('player:')) {
-        text = fmtTime(timerValue(model.runOf(room, key.slice(7)).total, ctx.now), { hours: 'always' });
       } else {
         continue;
       }

@@ -7,10 +7,12 @@
 //  meta:      { name, createdAt }
 //  players:   { [pid]: { name, color, createdAt } }
 //  games:     { [gid]: { title, order, createdAt } }            gemeinsame Spieleliste
-//  runs:      { [pid]: {                                         Fortschritt pro Spieler
+//  runs:      { team: {                                          gemeinsamer Fortschritt aller Spieler
 //                total: { elapsed, startedAt|null, finished },
 //                activeGame: gid|null,
-//                games: { [gid]: { elapsed, startedAt|null, done, doneAt|null } } } }
+//                games: { [gid]: { elapsed, startedAt|null, done, doneAt|null } } },
+//               [pid]: { … } }                                   alt: früher je Spieler, nur noch gelesen, bis
+//                                                                runs/team existiert (siehe legacyRun)
 //  overlay:   { [pid]: { ...OVERLAY_DEFAULTS } }                 Overlay-Einstellungen pro Spieler
 //  voting:    { settings: { mustBudget, vetoBudget, targetCount, closed },
 //               suggestions: { [sid]: { title, by, createdAt } },       sid = suggestionKey(title) oder Push-Key
@@ -19,7 +21,7 @@
 //  Timer: elapsed = bisher gesammelte ms, startedAt = Serverzeit des Starts (null = pausiert).
 //  Angezeigte Zeit = elapsed + (startedAt ? now - startedAt : 0)
 //
-//  Mehrere Geräte: Timer-Aktionen laufen als Transaktion auf runs/{pid}. Einzelne Felder (Name, Titel,
+//  Mehrere Geräte: Timer-Aktionen laufen als Transaktion auf runs/team. Einzelne Felder (Name, Titel,
 //  Reihenfolge) werden nur geschrieben, wenn der Eintrag noch existiert; database.rules.json weist zusätzlich
 //  Teil-Einträge ohne Pflichtfelder ab (z.B. verspätete Schreibvorgänge eines Geräts, das offline war).
 
@@ -155,14 +157,37 @@ export function sortedPlayers(room) {
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
 }
 
-export function runOf(room, pid) {
-  return room?.runs?.[pid] || { total: { elapsed: 0, startedAt: null, finished: false }, activeGame: null, games: {} };
+/** Schlüssel des gemeinsamen Runs: Alle Spieler teilen sich Zeiten, Haken und Gesamtzeit (runs/team) */
+export const TEAM_RUN = 'team';
+
+/**
+ * Stand aus der Zeit vor den gemeinsamen Zeiten (früher runs/{pid} je Spieler), solange runs/team fehlt:
+ * der Run mit den meisten „Gewonnen“-Haken, danach der längsten Gesamtzeit. Die erste Timer-Aktion übernimmt ihn
+ * nach runs/team; die alten Einträge bleiben liegen, werden aber nicht mehr angezeigt.
+ */
+export function legacyRun(runs) {
+  const cmp = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i]; return 0; };
+  let best = null;
+  let bestScore = null;
+  for (const [key, r] of entries(runs)) {
+    if (key === TEAM_RUN || !r || typeof r !== 'object') continue;
+    // Haken, dann aktuelle Gesamtzeit (inkl. laufendem Anteil), dann ob sie gerade läuft
+    const score = [Object.values(r.games || {}).filter((g) => g?.done).length, timerValue(r.total, Date.now()), r.total?.startedAt ? 1 : 0];
+    if (!bestScore || cmp(score, bestScore) > 0) { best = r; bestScore = score; }
+  }
+  return best;
 }
 
-/** Fortschritt eines Spielers: { done, total, allDone } */
-export function progressOf(room, pid) {
+/** gemeinsamer Run (bzw. übernommener alter Stand), nie null */
+export function runOf(room) {
+  return room?.runs?.[TEAM_RUN] || legacyRun(room?.runs)
+    || { total: { elapsed: 0, startedAt: null, finished: false }, activeGame: null, games: {} };
+}
+
+/** gemeinsamer Fortschritt: { done, total, allDone } */
+export function progressOf(room) {
   const games = sortedGames(room);
-  const run = runOf(room, pid);
+  const run = runOf(room);
   const done = games.filter((g) => run.games?.[g.id]?.done).length;
   return { done, total: games.length, allDone: games.length > 0 && done === games.length };
 }
@@ -284,12 +309,6 @@ export function bindActions(store, roomKey, getRoom) {
   const stopped = (timer, at) => ({ ...(timer || {}), elapsed: timerValue(timer, at), startedAt: null });
 
   /**
-   * runs/{pid} in einer Transaktion ändern. fn(run) ändert run direkt (total, activeGame, games sind immer da)
-   * und gibt false zurück, wenn nichts zu tun ist. Firebase ruft fn erneut mit dem Serverstand auf, wenn ein
-   * anderes Gerät dazwischen geschrieben hat – so überschreibt ein veralteter Stand keine neueren Zeiten.
-   * create: auch ausführen, wenn es für den Spieler noch keinen Run gibt.
-   */
-  /**
    * Ein Titel-Schlüssel kann schon einmal vergeben gewesen sein. Stimmen, die noch darauf liegen (z.B. verspätet von
    * einem Gerät, das offline war), sollen beim neuen Vorschlag nicht wieder aufleben. Nur löschen, was hier sichtbar ist.
    */
@@ -299,9 +318,16 @@ export function bindActions(store, roomKey, getRoom) {
     }
   };
 
-  const changeRun = (pid, fn, { create = false } = {}) => store.transaction(P(`runs/${pid}`), (cur) => {
-    if (!cur && !create) return undefined;
-    const run = cur ? structuredClone(cur) : {};
+  /**
+   * runs/{key} in einer Transaktion ändern. fn(run) ändert run direkt (total, activeGame, games sind immer da)
+   * und gibt false zurück, wenn nichts zu tun ist. Firebase ruft fn erneut mit dem Serverstand auf, wenn ein
+   * anderes Gerät dazwischen geschrieben hat – so überschreibt ein veralteter Stand keine neueren Zeiten.
+   * base(): Ausgangsstand, wenn der Run noch fehlt. create: auch ohne vorhandenen Stand ausführen.
+   */
+  const changeRunAt = (key, fn, { create = false, base = () => null } = {}) => store.transaction(P(`runs/${key}`), (cur) => {
+    const start = cur || base();
+    if (!start && !create) return undefined;
+    const run = start ? structuredClone(start) : {};
     run.total = { elapsed: 0, startedAt: null, finished: false, ...run.total };
     run.activeGame = run.activeGame ?? null;
     run.games = run.games || {};
@@ -309,6 +335,14 @@ export function bindActions(store, roomKey, getRoom) {
     if (!Object.keys(run.games).length) delete run.games;   // leere Objekte gibt es in Firebase nicht
     return run;
   });
+  /** gemeinsamer Run; fehlt er noch, wird der alte Einzelstand übernommen (legacyRun) */
+  const changeRun = (fn, opts = {}) => changeRunAt(TEAM_RUN, fn, { ...opts, base: () => legacyRun(room().runs) });
+  /**
+   * Zeiten zurücksetzen = runs durch einen leeren gemeinsamen Run ersetzen, nicht löschen: Alte Einzelstände sind damit
+   * weg, und eine gleichzeitig (oder offline) geklickte Timer-Transaktion, die noch einen alten Stand als Basis hatte,
+   * sieht einen geänderten Wert statt „fehlt“ und wird mit dem leeren Stand wiederholt – sonst käme der alte Stand zurück.
+   */
+  const emptyRuns = () => ({ [TEAM_RUN]: { total: { elapsed: 0, startedAt: null, finished: false } } });
 
   const actions = {
     // ---------- Raum ----------
@@ -333,12 +367,14 @@ export function bindActions(store, roomKey, getRoom) {
       await store.set(P(`players/${pid}/color`), color);
     },
     async removePlayer(pid) {
-      await store.update({
+      const map = {
         [P(`players/${pid}`)]: null,
-        [P(`runs/${pid}`)]: null,
         [P(`overlay/${pid}`)]: null,
         [P(`voting/votes/${pid}`)]: null,
-      });
+      };
+      // alten Einzelstand erst löschen, wenn runs/team existiert – vorher wird er evtl. als gemeinsamer Stand angezeigt
+      if (room().runs?.[TEAM_RUN]) map[P(`runs/${pid}`)] = null;
+      await store.update(map);
     },
 
     // ---------- Spiele ----------
@@ -357,17 +393,17 @@ export function bindActions(store, roomKey, getRoom) {
       await store.set(P(`games/${gid}/title`), title);
     },
     async removeGame(gid) {
-      // Zeiten je Spieler per Transaktion aufräumen: ein normales update unter runs/{pid} würde noch
-      // unbestätigte Timer-Transaktionen dieses Geräts abbrechen (z.B. offline geklickt). Alle starten, dann warten.
-      const jobs = [store.set(P(`games/${gid}`), null)];
-      for (const pid of Object.keys(room().runs || {})) {
-        jobs.push(changeRun(pid, (run) => {
+      // Zeit per Transaktion aus runs/team entfernen: ein normales update unter runs/… würde noch unbestätigte
+      // Timer-Transaktionen dieses Geräts abbrechen (z.B. offline geklickt). Alte Einzelstände bleiben unverändert,
+      // sonst könnte legacyRun auf einen anderen Stand umspringen. Beides starten, dann warten.
+      await Promise.all([
+        store.set(P(`games/${gid}`), null),
+        changeRun((run) => {
           if (!run.games[gid] && run.activeGame !== gid) return false;
           delete run.games[gid];
           if (run.activeGame === gid) run.activeGame = null;
-        }));
-      }
-      await Promise.all(jobs);
+        }),
+      ]);
     },
     /** neue Reihenfolge als Array von Spiel-IDs */
     async reorderGames(orderedIds) {
@@ -386,19 +422,19 @@ export function bindActions(store, roomKey, getRoom) {
       ids.splice(j, 0, gid);
       await actions.reorderGames(ids);
     },
-    /** ganze Liste ersetzen (z.B. aus dem Voting). Setzt alle Runs zurück. */
+    /** ganze Liste ersetzen (z.B. aus dem Voting). Setzt alle Zeiten zurück (siehe emptyRuns). */
     async replaceGames(titles) {
       const t = now();
       const games = {};
       titles.forEach((title, i) => { games[store.newKey()] = { title: String(title).trim(), order: i, createdAt: t + i }; });
-      await store.update({ [P('games')]: games, [P('runs')]: null });
+      await store.update({ [P('games')]: games, [P('runs')]: emptyRuns() });
     },
 
-    // ---------- Timer ----------
+    // ---------- Timer (gemeinsam für alle Spieler, runs/team) ----------
     // Zeitpunkt t = Klick. Wiederholt Firebase die Transaktion später (z.B. nach Offline-Phase), zählt trotzdem der Klick.
-    async startGame(pid, gid) {
+    async startGame(gid) {
       const t = now();
-      await changeRun(pid, (run) => {
+      await changeRun((run) => {
         // Spiel inzwischen entfernt / Liste ersetzt, oder auf einem anderen Gerät schon gewonnen
         if (!room().games?.[gid] || run.games[gid]?.done) return false;
         // anderes laufendes Spiel pausieren
@@ -413,16 +449,16 @@ export function bindActions(store, roomKey, getRoom) {
         if (!timerRunning(run.total)) run.total = { elapsed: run.total.elapsed || 0, startedAt: t, finished: false };
       }, { create: true });
     },
-    async pauseGame(pid, gid) {
+    async pauseGame(gid) {
       const t = now();
-      await changeRun(pid, (run) => {
+      await changeRun((run) => {
         if (!timerRunning(run.games[gid])) return false;
         run.games[gid] = stopped(run.games[gid], t);
       });
     },
-    async finishGame(pid, gid) {
+    async finishGame(gid) {
       const t = now();
-      await changeRun(pid, (run) => {
+      await changeRun((run) => {
         const games = sortedGames(room());
         if (!games.some((x) => x.id === gid)) return false;
         const g = run.games[gid] || {};
@@ -433,33 +469,33 @@ export function bindActions(store, roomKey, getRoom) {
         if (games.every((x) => run.games[x.id]?.done)) run.total = { ...stopped(run.total, t), finished: true };
       }, { create: true });
     },
-    async unfinishGame(pid, gid) {
-      await changeRun(pid, (run) => {
+    async unfinishGame(gid) {
+      await changeRun((run) => {
         const g = run.games[gid];
         if (!g?.done) return false;
         run.games[gid] = { ...g, elapsed: g.elapsed || 0, startedAt: null, done: false, doneAt: null };
         run.total.finished = false;
       });
     },
-    async resetGameTime(pid, gid) {
+    async resetGameTime(gid) {
       const t = now();
-      await changeRun(pid, (run) => {
+      await changeRun((run) => {
         const g = run.games[gid];
         if (!g) return false;
         run.games[gid] = { elapsed: 0, startedAt: timerRunning(g) ? t : null, done: !!g.done, doneAt: g.doneAt || null };
       });
     },
-    async startTotal(pid) {
+    async startTotal() {
       const t = now();
-      await changeRun(pid, (run) => {
+      await changeRun((run) => {
         if (timerRunning(run.total) || run.total.finished) return false;   // beendet → nur über resumeChallenge
         run.total = { elapsed: run.total.elapsed || 0, startedAt: t, finished: false };
       }, { create: true });
     },
     /** Pause: stoppt Gesamtzeit UND laufendes Spiel */
-    async pauseTotal(pid) {
+    async pauseTotal() {
       const t = now();
-      await changeRun(pid, (run) => {
+      await changeRun((run) => {
         run.total = { ...stopped(run.total, t), finished: !!run.total.finished };
         for (const [gid, tg] of Object.entries(run.games)) {
           if (timerRunning(tg)) run.games[gid] = stopped(tg, t);
@@ -467,9 +503,9 @@ export function bindActions(store, roomKey, getRoom) {
       });
     },
     /** Challenge beenden: alles stoppen, finished = true */
-    async finishChallenge(pid) {
+    async finishChallenge() {
       const t = now();
-      await changeRun(pid, (run) => {
+      await changeRun((run) => {
         run.total = { ...stopped(run.total, t), finished: true };
         run.activeGame = null;
         for (const [gid, tg] of Object.entries(run.games)) {
@@ -477,16 +513,16 @@ export function bindActions(store, roomKey, getRoom) {
         }
       }, { create: true });
     },
-    async resumeChallenge(pid) {
+    async resumeChallenge() {
       const t = now();
-      await changeRun(pid, (run) => {
+      await changeRun((run) => {
         if (timerRunning(run.total)) return false;
         run.total = { elapsed: run.total.elapsed || 0, startedAt: t, finished: false };
       }, { create: true });
     },
-    /** kompletter Neustart für einen Spieler (alle Zeiten weg) */
-    async resetRun(pid) {
-      await store.remove(P(`runs/${pid}`));
+    /** kompletter Neustart für alle (alle Zeiten und Haken weg, auch alte Einzelstände – siehe emptyRuns) */
+    async resetRun() {
+      await store.set(P('runs'), emptyRuns());
     },
 
     // ---------- Overlay ----------

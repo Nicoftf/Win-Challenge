@@ -7,7 +7,7 @@ kann ebenfalls pushen.
 ## Worum es geht
 
 Website für eine Win-Challenge von **4 Freunden** (derzeit 22 Spielvorschläge): gemeinsame Spieleliste, Zeit pro Spiel
-und Gesamtzeit je Spieler, Voting, OBS-Overlay. Nur diese 4 Personen nutzen die Seite. Der Nutzer spricht Deutsch.
+und Gesamtzeit **gemeinsam für alle** (die vier spielen zusammen), Voting, OBS-Overlay (Aussehen je Spieler). Nur diese 4 Personen nutzen die Seite. Der Nutzer spricht Deutsch.
 
 - **Live:** https://nicoftf.github.io/Win-Challenge/ (GitHub Pages, Branch `main`, Root). Push auf `main` = Deploy.
 - **Repo:** https://github.com/Nicoftf/Win-Challenge (öffentlich, weil Pages im Gratis-Tarif das verlangt).
@@ -43,22 +43,23 @@ und Gesamtzeit je Spieler, Voting, OBS-Overlay. Nur diese 4 Personen nutzen die 
 | `scripts/serve.mjs` | Dev-Server ohne Cache (Node, plattformunabhängig) |
 | `tests/` | `model.test.mjs` (Node), `browser.test.mjs` (Headless Chrome/Edge per DevTools-Protokoll), `lib/` |
 
-Datenmodell unter `rooms/{CODE}/`: `meta`, `players`, `games` (gemeinsam), `runs/{pid}` (Zeiten je Spieler),
+Datenmodell unter `rooms/{CODE}/`: `meta`, `players`, `games` (gemeinsam), `runs/team` (gemeinsame Zeiten, `TEAM_RUN`;
+alte `runs/{pid}` aus der Zeit mit Einzelzeiten werden nur als Übernahme gelesen, siehe `legacyRun`),
 `overlay/{pid}` (Einstellungen je Spieler), `voting/{settings,suggestions,votes}`. Exakte Struktur: Kommentar oben in
 `js/model.js`. localStorage-Schlüssel: `wc.room`, `wc.player`, `wc.localdb` (Daten im lokalen Modus),
 `wc.editor.bg` (Vorschau-Hintergrund im Overlay-Editor). Offene Tabs gleichen sich im lokalen Modus über den
 BroadcastChannel `wc-local` ab.
 
 Timer-Prinzip: gespeichert werden `elapsed` (ms) + `startedAt` (Serverzeit oder `null`). Angezeigt wird
-`timerValue(t, now)`. Nur ein Spiel läuft pro Spieler; `startGame` pausiert andere und startet die Gesamtzeit mit;
+`timerValue(t, now)`. Nur ein Spiel läuft gleichzeitig (für alle); `startGame` pausiert andere und startet die Gesamtzeit mit;
 letztes Spiel gewonnen → Gesamtzeit stoppt, `finished = true`. Alle Timer-Aktionen (und das Aufräumen in `removeGame`)
-schreiben `runs/{pid}` nur über `changeRun` (Transaktion, Klickzeit vorher erfasst, `return false` = nichts tun).
+schreiben `runs/team` nur über `changeRun` (Transaktion, Klickzeit vorher erfasst, `return false` = nichts tun).
 Vorschlags-IDs kommen aus `suggestionKey(title)` (Push-Key als Ausweichlösung), damit gleichzeitige gleiche Vorschläge
 im selben Eintrag landen; `votingResults` markiert trotzdem doppelte Titel (`duplicate`, kein Rang).
 
 Voting: `must` +3 (Budget, Standard 5), `yes` +1, `meh` 0, `no` −1, `veto` = raus (Budget, Standard 2; Budget 0 =
 unbegrenzt). Sortierung: Punkte, dann mehr `must`, mehr `yes`, weniger `no`, älter. Die oberen `targetCount`
-(Standard 15, 0 = alle) kommen rein. „Ergebnis übernehmen“ ersetzt `games` und löscht **alle** `runs`.
+(Standard 15, 0 = alle) kommen rein. „Ergebnis übernehmen“ ersetzt `games` und setzt **alle** Zeiten zurück (`runs` = `emptyRuns()`).
 `VOTING_DEFAULTS` werden beim Anlegen eines Raums (`createRoom` in shell.js) in `voting/settings` gespeichert – neue
 Defaults in model.js gelten also nur für neue Räume. Overlay-Defaults werden dagegen nicht gespeichert und wirken
 sofort für alle nicht überschriebenen Werte.
@@ -79,9 +80,14 @@ sofort für alle nicht überschriebenen Werte.
   - Firebase löst Schreib-Promises erst nach Server-Bestätigung auf und fragt Offline-Änderungen nur nach, solange
     die Seite offen bleibt. UI nie erst nach `await` umschalten, wenn der lokale Stand schon reicht (siehe
     `createRoom`, „Los“ in shell.js). `pendingSince()` + `beforeunload` in shell.js warnen vor Datenverlust.
-  - `runs/{pid}` nie mit normalem `set/update` schreiben: überschreibt Änderungen anderer Geräte und bricht eigene
-    noch offene Transaktionen auf demselben Pfad ab (sie lösen dann still mit `false` auf). Ausnahme: ganzen Run
-    löschen (`removePlayer`, `replaceGames`, `resetRun`).
+  - `runs/team` nie mit normalem `set/update` schreiben: überschreibt Änderungen anderer Geräte und bricht eigene
+    noch offene Transaktionen auf demselben Pfad ab (sie lösen dann still mit `false` auf). Ausnahme: alles zurücksetzen
+    (`replaceGames`, `resetRun` ersetzen `runs` durch `emptyRuns()` = leerer `runs/team`; **nicht** löschen, sonst kann eine
+    gleichzeitige/offline Transaktion mit altem Einzelstand als Basis diesen zurückbringen). `removePlayer` löscht
+    `runs/{pid}` erst, wenn `runs/team` existiert; `removeGame` ändert nur `runs/team` (alte Stände nie anfassen, sonst
+    springt `legacyRun` um). `legacyRun` wertet Haken, dann `timerValue` der Gesamtzeit.
+    Timer-Aktionen haben keinen Spieler-Parameter mehr (`startGame(gid)`, `pauseTotal()` …); `runOf(room)`/
+    `progressOf(room)` liefern den gemeinsamen Stand. Nutzerwunsch (September 2026): Zeiten sollen für alle synchron sein.
   - Einzelne Felder (`players/x/name`, `games/x/order` …) nur schreiben, wenn der Eintrag lokal noch existiert.
     Einträge immer vollständig anlegen, Pflichtfelder nie einzeln löschen – sonst lehnen die Regeln ab.
   - Lokaler Modus und beide Test-Skripte prüfen `database.rules.json` **nicht**; Regelverstöße zeigen sich erst live

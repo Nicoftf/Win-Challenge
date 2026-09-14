@@ -38,10 +38,6 @@
 .total-progress .progress { flex: 1; }
 .total-progress .count { flex: none; min-width: 110px; }
 
-.others { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
-.other { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
-.other-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
-.others-empty { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 
 /* ---------- Spieleliste ---------- */
 /* Menüs müssen aus der Liste herausragen dürfen */
@@ -93,7 +89,6 @@
   .game-row .lbl { display: none; }
   .list-row { padding: 8px 10px; gap: 8px; }
   .game-row .game-time { min-width: 48px; font-size: 13px; }
-  .other-name { max-width: 100px; }
   .player-row .lbl { display: none; }
 }
 @media (max-width: 420px) {

@@ -336,7 +336,7 @@ export async function boot(page) {
             <input class="input grow" name="name" placeholder="Neuer Spieler: dein Name" autocomplete="off" required>
             <button class="btn btn-primary" type="submit">Los</button>
           </form>
-          <p class="muted small">Jeder Spieler hat eigene Zeiten und ein eigenes Overlay. Die Spieleliste und das Voting sind gemeinsam.</p>
+          <p class="muted small">Spieleliste, Zeiten und Voting sind gemeinsam. Jeder Spieler hat eigene Stimmen und stellt sein Overlay selbst ein.</p>
           <button class="btn btn-ghost btn-sm" @click=${leaveRoom}>Anderen Raum wählen</button>
         </div>
       </div>`;

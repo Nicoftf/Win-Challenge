@@ -1,5 +1,5 @@
 // Legt im lokalen Modus einen Test-Raum an: 4 Spieler, 22 Vorschläge mit Stimmen,
-// übernommenes Ergebnis (15 Spiele), Zeiten für "Nico" (3 gewonnen, Spiel 7 läuft) und "Lukas".
+// übernommenes Ergebnis (15 Spiele), gemeinsame Zeiten (runs/team: 3 gewonnen, Spiel 7 läuft).
 // Wird als Ausdruck im Browser ausgeführt (auf einer Seite der App, damit die Module geladen werden können).
 export const SEED = `(async () => {
   const { createStore } = await import(new URL('js/store.js', location.href));
@@ -34,12 +34,11 @@ export const SEED = `(async () => {
   const games = m.sortedGames(room);
   const now = store.now();
   const nico = ids[0];
-  for (let i = 0; i < 3; i++) await store.set(m.roomPath(key, 'runs/' + nico + '/games/' + games[i].id), { elapsed: 600000 + i * 137000, startedAt: null, done: true, doneAt: now });
-  await store.set(m.roomPath(key, 'runs/' + nico + '/games/' + games[6].id), { elapsed: 125000, startedAt: now, done: false, doneAt: null });
-  await store.set(m.roomPath(key, 'runs/' + nico + '/activeGame'), games[6].id);
-  await store.set(m.roomPath(key, 'runs/' + nico + '/total'), { elapsed: 2500000, startedAt: now, finished: false });
-  for (let i = 0; i < 5; i++) await store.set(m.roomPath(key, 'runs/' + ids[1] + '/games/' + games[i].id), { elapsed: 400000 + i * 91000, startedAt: null, done: true, doneAt: now });
-  await store.set(m.roomPath(key, 'runs/' + ids[1] + '/total'), { elapsed: 3200000, startedAt: null, finished: false });
+  const team = 'runs/' + m.TEAM_RUN;
+  for (let i = 0; i < 3; i++) await store.set(m.roomPath(key, team + '/games/' + games[i].id), { elapsed: 600000 + i * 137000, startedAt: null, done: true, doneAt: now });
+  await store.set(m.roomPath(key, team + '/games/' + games[6].id), { elapsed: 125000, startedAt: now, done: false, doneAt: null });
+  await store.set(m.roomPath(key, team + '/activeGame'), games[6].id);
+  await store.set(m.roomPath(key, team + '/total'), { elapsed: 2500000, startedAt: now, finished: false });
   localStorage.setItem('wc.room', key);
   localStorage.setItem('wc.player', nico);
   return { key, nico, ids, games: games.length };

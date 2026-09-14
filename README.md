@@ -1,6 +1,6 @@
 # Win-Challenge
 
-Eine kleine Website für eure Win-Challenge: gemeinsame Spieleliste, Voting, Zeitmessung pro Spieler und ein Overlay für OBS.
+Eine kleine Website für eure Win-Challenge: gemeinsame Spieleliste, Voting, gemeinsame Zeitmessung und ein Overlay für OBS.
 Läuft komplett im Browser – keine Installation, kein Build, kein eigener Server. Der Abgleich zwischen euch läuft über
 eine kostenlose Firebase Realtime Database; zum Ausprobieren geht es auch ohne (lokaler Modus).
 
@@ -15,7 +15,8 @@ eine kostenlose Firebase Realtime Database; zum Ausprobieren geht es auch ohne (
 | Overlay | `overlay.html` | Browser-Quelle für OBS (nur mit `?room=…&player=…` sinnvoll) |
 | Overlay-Editor | `overlay-editor.html` | Aussehen des Overlays einstellen, Live-Vorschau, OBS-URL kopieren |
 
-Spieleliste und Voting sind gemeinsam. Zeiten und Overlay-Einstellungen hat jeder Spieler für sich.
+Spieleliste, Zeiten, „Gewonnen“-Haken und Voting sind gemeinsam. Nur die eigenen Stimmen und das Aussehen des Overlays
+hat jeder Spieler für sich.
 
 ## Schnellstart lokal (ausprobieren)
 
@@ -180,10 +181,11 @@ Jeder Spieler bekommt automatisch eine Farbe. Auf diesem Bildschirm gibt es auch
 **Challenge umbenennen oder andere Challenge öffnen:** Drei-Punkte-Menü in der Kopfzeile (ganz oben rechts, neben „Einladen“). Der Name darf höchstens 80 Zeichen lang sein.
 
 **Spieler wechseln:** Auswahlfeld mit deinem Namen in der Kopfzeile. Die Wahl gilt nur für diesen Browser –
-jeder wählt auf seinem Gerät sich selbst. Wer am selben PC sitzt, wechselt vor dem Starten kurz zu sich.
+jeder wählt auf seinem Gerät sich selbst. Die Auswahl bestimmt nur, für wen du abstimmst und
+wessen Overlay du einstellst. Zeiten und Haken sind für alle gleich, egal wer klickt.
 
-Spieler umbenennen, hinzufügen, entfernen: Spiele-Seite, Bereich „Spieler“. Entfernen löscht auch dessen Zeiten,
-Overlay-Einstellungen und Voting-Stimmen.
+Spieler umbenennen, hinzufügen, entfernen: Spiele-Seite, Bereich „Spieler“. Entfernen löscht dessen Overlay-Einstellungen
+und Voting-Stimmen; die gemeinsamen Zeiten bleiben.
 
 ### Voting
 
@@ -196,11 +198,14 @@ Overlay-Einstellungen und Voting-Stimmen.
    (Kürzel siehe „Voting-System“), ein gestricheltes Kästchen heißt „noch nicht abgestimmt“. Eine Linie markiert die
    Grenze. Unter „Einstellungen“: Zielanzahl, Budgets, „Voting geschlossen“.
 4. „Ergebnis als Spieleliste übernehmen“: die Spiele über der Grenze werden die neue Spieleliste.
-   **Das ersetzt die vorhandene Liste und löscht die Zeiten aller Spieler.**
+   **Das ersetzt die vorhandene Liste und löscht alle Zeiten.**
 
 ### Spiele und Zeiten
 
-- „Challenge starten“ startet deine Gesamtzeit. Sie läuft unabhängig davon, ob gerade ein Spiel läuft.
+Zeiten, „Gewonnen“-Haken und Gesamtzeit sind **gemeinsam für alle**: Startet einer ein Spiel, läuft es bei allen –
+auf der Seite und in jedem Overlay. Wer klickt, ist egal.
+
+- „Challenge starten“ startet die Gesamtzeit. Sie läuft unabhängig davon, ob gerade ein Spiel läuft.
 - „Start“ an einem Spiel startet dessen Zeit. Läuft schon ein anderes Spiel, wird es automatisch pausiert – es läuft
   immer nur ein Spiel. Die Gesamtzeit startet mit, falls sie noch nicht läuft.
 - „Pause“ am Spiel stoppt nur dieses Spiel, die Gesamtzeit läuft weiter. „Pause“ oben stoppt Gesamtzeit und Spiel.
@@ -208,12 +213,17 @@ Overlay-Einstellungen und Voting-Stimmen.
   Ist das letzte Spiel abgehakt, stoppt die Gesamtzeit automatisch und die Challenge gilt als beendet.
 - „Zurück“ nimmt den Haken wieder weg (die Zeit bleibt). „Zeit zurücksetzen“ stellt die Zeit eines Spiels auf 00:00.
 - „Challenge beenden“ stoppt alles. „Wieder aufnehmen“ lässt die Gesamtzeit weiterlaufen.
-- „Meinen Fortschritt zurücksetzen“ (Drei-Punkte-Menü in der Gesamtzeit-Karte, rechts neben „Challenge starten“ bzw.
-  „Pause“ – nicht das in der Kopfzeile) setzt deinen Fortschritt komplett zurück:
-  Gesamtzeit, alle Spielzeiten **und alle „Gewonnen“-Haken**. Das betrifft nur dich – Spieleliste und die
-  anderen Spieler bleiben.
+- „Fortschritt zurücksetzen“ (Drei-Punkte-Menü in der Gesamtzeit-Karte, rechts neben „Challenge starten“ bzw.
+  „Pause“ – nicht das in der Kopfzeile) setzt den Fortschritt komplett zurück:
+  Gesamtzeit, alle Spielzeiten **und alle „Gewonnen“-Haken** – für alle. Die Spieleliste bleibt.
 - Umbenennen, Sortieren (Ziehen am Griff oder Menü „nach oben / nach unten“) und Entfernen gelten für alle.
-  Entfernen löscht auch die Zeiten aller Spieler für dieses Spiel.
+  Entfernen löscht auch die Zeit dieses Spiels.
+- Vor dieser Umstellung hatte jeder Spieler eigene Zeiten. Solange noch kein gemeinsamer Stand existiert, zeigt die
+  Seite den alten Stand mit den meisten „Gewonnen“-Haken (bei Gleichstand der längsten Gesamtzeit) und übernimmt ihn
+  beim ersten Klick auf Start, Pause, Gewonnen usw. Die übrigen alten Einzelstände werden nicht mehr angezeigt.
+  **Nach diesem Update alle offenen Tabs (Strg+F5) und alle OBS-Browserquellen einmal neu laden** (OBS: Quelle →
+  Eigenschaften → „Cache der aktuellen Seite aktualisieren“), bevor jemand einen Timer klickt – ältere, noch offene
+  Seiten zeigen und schreiben sonst weiter die alten Einzelzeiten.
 
 ### Overlay in OBS
 
@@ -291,13 +301,13 @@ So wird ausgewertet:
   umbenennen bzw. entfernen. Das Ergebnis bleibt sichtbar.
 - Stimmen für gelöschte Vorschläge und Stimmen entfernter Spieler zählen nicht.
 - **Übernehmen**: „Ergebnis als Spieleliste übernehmen“ macht genau die Spiele mit Status „drin“ (in dieser Reihenfolge)
-  zur neuen Spieleliste. Die alte Liste und **alle Zeiten aller Spieler** werden dabei gelöscht.
+  zur neuen Spieleliste. Die alte Liste und **alle Zeiten** werden dabei gelöscht.
 - Umgekehrt geht auch: „Spieleliste als Vorschläge übernehmen“ holt vorhandene Spiele ins Voting (ohne Doppelte).
 
 ## Sicherheit
 
 - **Der Raum-Code ist das Passwort.** 20 zufällige Zeichen, praktisch nicht zu erraten. Wer den Code oder den
-  Einladungslink hat, kann alles im Raum lesen, ändern und löschen – auch die Zeiten der anderen.
+  Einladungslink hat, kann alles im Raum lesen, ändern und löschen – auch die Zeiten.
 - Einladungslink nur direkt an die Mitspieler schicken. Nicht in öffentliche Discord-Kanäle, in den Stream-Chat oder
   auf Social Media posten.
 - Die Overlay-URL enthält den Code ebenfalls. Beim Einrichten von OBS nicht live zeigen.
@@ -330,7 +340,8 @@ Hinweise:
 - Änderungen im Overlay-Editor erscheinen sofort in OBS. Kein Neuladen nötig.
 - Die Option „Seite neu laden, wenn Szene aktiv wird“ (Name je nach OBS-Version leicht anders) kann eingeschaltet
   bleiben; nötig ist sie nicht.
-- Jeder Spieler hat seine eigene Overlay-URL (mit seiner `player=`-Kennung) und sieht darin nur seine Zeiten.
+- Jeder Spieler hat seine eigene Overlay-URL (mit seiner `player=`-Kennung) mit seinem eigenen Aussehen. Die Zeiten
+  darin sind für alle dieselben.
 - OBS braucht Internet: Die Daten kommen aus Firebase, die Schriften von Google Fonts.
 - Im lokalen Modus zeigt OBS nichts – OBS ist ein eigener Browser und sieht die lokal gespeicherten Daten nicht.
 - Testen ohne OBS: Overlay-URL im normalen Browser öffnen. Mit `&preview=1` am Ende werden Beispielspiele angezeigt,
@@ -367,7 +378,7 @@ Dateien:
 | `CLAUDE.md` | Projektwissen für Claude Code (Aufbau, Regeln, offene Punkte) |
 
 Datenmodell in der Datenbank (alles unter `rooms/CODE/`): `meta` (Name), `players`, `games` (gemeinsame Liste),
-`runs` (Zeiten je Spieler), `overlay` (Einstellungen je Spieler), `voting` (Einstellungen, Vorschläge, Stimmen).
+`runs/team` (gemeinsame Zeiten), `overlay` (Einstellungen je Spieler), `voting` (Einstellungen, Vorschläge, Stimmen).
 Details stehen als Kommentar oben in `js/model.js`.
 
 ### Entwicklung und Tests
@@ -469,7 +480,7 @@ Geht. Es gibt acht Farben, danach wiederholen sie sich.
 **Alles löschen und neu anfangen?**
 Drei-Punkte-Menü in der Kopfzeile (ganz oben rechts, neben „Einladen“) → „Andere Challenge öffnen“ → „Neue Challenge anlegen“. Der alte Raum bleibt dabei in
 der Datenbank. Ganz löschen: Firebase-Konsole → Realtime Database → „Daten“ → `rooms` → Eintrag mit dem Code → löschen.
-Nur deinen eigenen Fortschritt zurücksetzen: Spiele-Seite → Drei-Punkte-Menü in der Gesamtzeit-Karte → „Meinen
-Fortschritt zurücksetzen“. Das löscht deine Gesamtzeit, alle deine Spielzeiten und alle deine „Gewonnen“-Haken – das muss
-jeder Spieler selbst machen. Nur die Zeit eines einzelnen Spiels: Menü am Spiel → „Zeit zurücksetzen“. Die Zeiten
-aller Spieler auf einmal löscht nur „Ergebnis als Spieleliste übernehmen“ auf der Voting-Seite.
+Nur den Fortschritt zurücksetzen (Liste bleibt): Spiele-Seite → Drei-Punkte-Menü in der Gesamtzeit-Karte →
+„Fortschritt zurücksetzen“. Das löscht Gesamtzeit, alle Spielzeiten und alle „Gewonnen“-Haken für alle. Nur die Zeit
+eines einzelnen Spiels: Menü am Spiel → „Zeit zurücksetzen“. „Ergebnis als Spieleliste übernehmen“ auf der
+Voting-Seite ersetzt die Liste und löscht ebenfalls alle Zeiten.
