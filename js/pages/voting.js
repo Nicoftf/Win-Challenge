@@ -182,7 +182,7 @@ function explainBlock(settings) {
       <summary>${icons.info()} So funktioniert das Voting <span class="chev">${icons.chevron()}</span></summary>
       <div class="fold-body">
         <p>Jeder bewertet jedes vorgeschlagene Spiel mit einer von fünf Stimmen.</p>
-        <p><b class="v-must">Muss rein</b> +3 (${must}) · <b class="v-yes">Gerne</b> +1 · <b>Egal</b> 0 · <b class="v-no">Lieber nicht</b> −1 · <b class="v-veto">Veto</b> = Spiel fliegt raus (${veto}).</p>
+        <p><b>Muss rein</b> +3 (${must}) · <b>Gerne</b> +1 · <b>Egal</b> 0 · <b>Lieber nicht</b> −1 · <b>Veto</b> = Spiel fliegt raus (${veto}).</p>
         <p class="legend">Kürzel in der Tabelle:
           ${VOTE_VALUES.map((v) => html`<span class="legend-item"><span class="chip vchip vchip-${v}">${VOTE_INFO[v].short}</span> ${VOTE_INFO[v].label}</span>`)}
           <span class="legend-item"><span class="chip vchip vchip-none"></span> noch keine Stimme</span></p>
@@ -293,6 +293,7 @@ function statusPill(r, playersById, targetCount) {
     const names = Object.entries(r.votes).filter(([, v]) => v === 'veto').map(([pid]) => playersById[pid]?.name || '?');
     return html`<span class="pill pill-red" title="Veto von ${names.join(', ')}">Veto</span>`;
   }
+  if (r.duplicate) return html`<span class="pill" title="Gleicher Titel steht schon weiter oben">doppelt</span>`;
   if (r.inList) return html`<span class="pill pill-green">drin</span>`;
   const close = targetCount > 0 && r.rank <= targetCount + 3;
   return html`<span class="pill" title="Platz ${r.rank} – ${close ? 'nur knapp ' : ''}nicht unter den oberen ${targetCount}">${close ? 'knapp draußen' : 'draußen'}</span>`;

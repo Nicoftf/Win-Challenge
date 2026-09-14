@@ -11,9 +11,10 @@
 .note { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); color: var(--text-muted); font-size: 13px; line-height: 1.45; }
 .note > .icon { flex: none; margin-top: 1px; }
 .note a { color: var(--text); font-weight: 500; }
-.note-warn { background: #1f1c12; border-color: rgba(216, 197, 138, 0.22); color: #d8c58a; }
-.note-lock { border-color: rgba(229, 83, 75, 0.35); color: #f0a9a4; }
-.note-ok { border-color: rgba(86, 194, 113, 0.35); color: var(--green); }
+.note-warn { border-color: var(--border-strong); color: var(--text-muted); }
+.note-warn strong { color: var(--text); }
+.note-lock { border-color: var(--red-line); color: var(--red-text); }
+.note-ok { border-color: var(--green-line); color: var(--green); }
 .note-ok a:hover { color: var(--green); }
 
 .fold { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elev); }
@@ -30,10 +31,6 @@
 .explain { margin-bottom: 24px; }
 .explain .fold-body { color: var(--text-muted); font-size: 14px; gap: 6px; }
 .explain .fold-body b { color: var(--text); font-weight: 500; }
-.explain .v-must { color: var(--accent); }
-.explain .v-yes { color: var(--green); }
-.explain .v-veto { color: var(--red); }
-.explain .v-no { color: #e6a19c; }
 .explain .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
 .explain .legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 
@@ -44,7 +41,7 @@
 /* Budget-Zeile */
 .budget { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
 .budget b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-.budget .full b { color: var(--accent); }
+.budget .full { color: var(--text); }   /* „Muss rein“ voll: weiß wie überall, rot bleibt dem Veto */
 .budget .full-veto b { color: var(--red); }
 .budget .sep { color: var(--text-faint); }
 .budget .check { margin-left: auto; font-size: 13px; color: var(--text-muted); }
@@ -67,12 +64,12 @@
 /* 5er-Stimmgruppe */
 .vote-group .btn { padding: 0 9px; }
 .vote-short { display: none; font-family: var(--mono); font-weight: 600; }
-.vote-group .btn.on.vote-must { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.vote-group .btn.on.vote-must { background: var(--text); border-color: var(--text); color: #0a0a0a; }
 .vote-group .btn.on.vote-yes { background: var(--green-soft); border-color: rgba(86, 194, 113, 0.6); color: var(--green); }
 /* Gleiche Farben wie die Chips in der Ergebnis-Tabelle (.vchip-*) */
-.vote-group .btn.on.vote-meh { background: var(--bg-active); border-color: var(--text-muted); color: var(--text); box-shadow: inset 0 0 0 1px rgba(154, 158, 168, 0.4); }
-.vote-group .btn.on.vote-no { background: rgba(229, 83, 75, 0.08); border-color: rgba(229, 83, 75, 0.6); color: #e6a19c; }
-.vote-group .btn.on.vote-veto { background: var(--red); border-color: var(--red); color: #fff; }
+.vote-group .btn.on.vote-meh { background: var(--bg-active); border-color: var(--text-muted); color: var(--text); box-shadow: inset 0 0 0 1px rgba(163, 163, 168, 0.4); }
+.vote-group .btn.on.vote-no { background: rgba(199, 0, 57, 0.1); border-color: var(--red); color: var(--red-text); box-shadow: inset 0 0 0 1px var(--red-line); }
+.vote-group .btn.on.vote-veto { background: var(--red-fill); border-color: var(--red-fill); color: #fff; }
 @media (max-width: 720px) {
   .vote-long { display: none; }
   .vote-short { display: inline; }
@@ -100,7 +97,7 @@
 .chip.chip-empty { border: 1px dashed var(--border-strong); background: transparent; }
 .result-table tr.cut td { padding: 3px 10px; border-bottom: 1px solid var(--border); }
 .cut-line { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
-.cut-line::before, .cut-line::after { content: ''; flex: 1; height: 1px; background: rgba(242, 193, 78, 0.4); }
+.cut-line::before, .cut-line::after { content: ''; flex: 1; height: 1px; background: var(--accent-line); }
 .result-foot { margin-top: 8px; }
 .apply-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
 
@@ -125,10 +122,10 @@
 .vote-head-name { display: inline-block; max-width: 72px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .result-table td.vote-cell { text-align: center; padding-left: 4px; padding-right: 4px; }
 .vchip { min-width: 26px; border: 1px solid transparent; }
-.vchip-must { background: var(--accent-soft); border-color: rgba(242,193,78,.45); color: var(--accent); }
-.vchip-yes  { background: var(--green-soft); border-color: rgba(86,194,113,.35); color: var(--green); }
+.vchip-must { background: rgba(237,237,237,.1); border-color: rgba(237,237,237,.55); color: var(--text); }
+.vchip-yes  { background: var(--green-soft); border-color: var(--green-line); color: var(--green); }
 .vchip-meh  { background: var(--bg-hover); border-color: var(--border-strong); color: var(--text-muted); }
-.vchip-no   { background: transparent; border-color: rgba(229,83,75,.35); color: #d98a85; }
-.vchip-veto { background: var(--red); border-color: var(--red); color: #fff; }
+.vchip-no   { background: transparent; border-color: var(--red); color: var(--red-text); }
+.vchip-veto { background: var(--red-fill); border-color: var(--red-fill); color: #fff; }
 .vchip-none { border: 1px dashed var(--border-strong); background: transparent; }
 @media (max-width: 720px) { .vote-head-name { max-width: 28px; } }

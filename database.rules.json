@@ -10,6 +10,23 @@
           "name": {
             ".validate": "newData.isString() && newData.val().length <= 80"
           }
+        },
+        "players": {
+          "$pid": {
+            ".validate": "newData.hasChildren(['name', 'color', 'createdAt'])"
+          }
+        },
+        "games": {
+          "$gid": {
+            ".validate": "newData.hasChildren(['title', 'order', 'createdAt'])"
+          }
+        },
+        "voting": {
+          "suggestions": {
+            "$sid": {
+              ".validate": "newData.hasChildren(['title', 'createdAt'])"
+            }
+          }
         }
       }
     }

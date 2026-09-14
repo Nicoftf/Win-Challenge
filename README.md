@@ -26,7 +26,7 @@ Die Seite lädt JavaScript-Module und braucht deshalb einen Webserver. Doppelkli
    unter Windows `py -m http.server 8000`.
 3. Im Browser http://localhost:8000 öffnen.
 
-Solange in `js/config.js` kein Firebase eingetragen ist, läuft die Seite im **lokalen Modus** (gelber Hinweis oben).
+Solange in `js/config.js` kein Firebase eingetragen ist, läuft die Seite im **lokalen Modus** (Hinweis „Lokaler Modus“ oben).
 Alles wird nur in diesem Browser gespeichert: kein Abgleich mit den anderen, kein OBS-Overlay. Zum Kennenlernen reicht das.
 
 ## Firebase einrichten (für den echten Einsatz)
@@ -57,8 +57,13 @@ Wichtig: **Realtime Database**, nicht „Firestore“. Das ist ein anderes Produ
 3. „Veröffentlichen“.
 
 Was die Regeln tun: Alles ist gesperrt, außer `rooms/RAUMCODE` – und dort darf jeder lesen und schreiben, der den Code kennt
-(16–32 Zeichen, nur A–Z und 0–9). Der Name der Challenge ist auf 80 Zeichen begrenzt. Mehr prüfen die Regeln nicht.
+(16–32 Zeichen, nur A–Z und 0–9). Der Name der Challenge ist auf 80 Zeichen begrenzt. Spieler, Spiele und Vorschläge
+müssen vollständig sein: Schickt ein Gerät nach einer Offline-Phase veraltete Änderungen zu einem inzwischen gelöschten
+Eintrag, entsteht kein halber Eintrag ohne Namen. Mehr prüfen die Regeln nicht.
 Das ist bewusst einfach gehalten: kein Login, keine Konten. Der lange Zufallscode ist das Passwort (siehe „Sicherheit“).
+
+**Ändert sich `database.rules.json` später** (z. B. nach einem Update der Seite), die Regeln genauso neu einfügen und
+veröffentlichen. Die Datei im Repository wirkt nicht von selbst.
 
 ### 4. Web-App registrieren und Config kopieren
 
@@ -98,9 +103,9 @@ export const firebaseConfig = {
 Wenn der kopierte Block keine `databaseURL` hat: Realtime Database → Reiter „Daten“. Oben steht die Adresse der Datenbank
 (`https://…firebasedatabase.app`). Diese Adresse als `databaseURL: "…",` in den Block eintragen.
 
-Prüfen: Seite neu laden. Der gelbe Hinweis „Lokaler Modus“ muss weg sein. Sobald du einen Raum anlegst, taucht er in der
-Firebase-Konsole unter „Daten“ → `rooms` auf. Kommt beim „Anlegen“ die Meldung „Keine Berechtigung“: Regeln aus
-Schritt 3 prüfen (siehe FAQ).
+Prüfen: Seite neu laden. Der Hinweis „Lokaler Modus“ oben muss weg sein. Sobald du einen Raum anlegst, taucht er in der
+Firebase-Konsole unter „Daten“ → `rooms` auf. Kommt beim „Anlegen“ die Meldung „Die Datenbank hat das abgelehnt“ oder
+„Keine Leseberechtigung“: Regeln aus Schritt 3 prüfen (siehe FAQ).
 
 ### Kosten und Limits
 
@@ -111,10 +116,14 @@ OBS sind ein paar Verbindungen. Ihr kommt nicht in die Nähe der Grenzen.
 ## Auf GitHub Pages veröffentlichen
 
 > Für dieses Repository ist GitHub Pages schon eingerichtet: https://nicoftf.github.io/Win-Challenge/
-> Änderungen (z. B. die Firebase-Werte in `js/config.js`) einfach committen und pushen:
+> Änderungen (z. B. die Firebase-Werte in `js/config.js`) einfach committen und pushen, Zeile für Zeile
+> (Windows PowerShell 5.1 kennt kein `&&`):
 > ```bash
-> git add -A && git commit -m "Firebase eingetragen" && git push
+> git add -A
+> git commit -m "Firebase eingetragen"
+> git push
 > ```
+> Meldet `git commit` „nothing to commit“, war schon alles hochgeladen – dann wurde auch nichts Neues veröffentlicht.
 > Nach ca. einer Minute ist die neue Version online. Die Schritte unten brauchst du nur für ein eigenes, neues Repository.
 
 Damit alle die gleiche Adresse benutzen (und OBS von überall darauf zugreift), legst du die Dateien auf GitHub Pages ab.
@@ -245,7 +254,7 @@ Jeder Spieler gibt jedem Vorschlag eine von fünf Stimmen:
 
 | Stimme | Kürzel | Farbe | Punkte | Bedeutung |
 |---|---|---|---|---|
-| Muss rein | `!!` | gelb | +3 | Will ich unbedingt spielen – **begrenzt**, Standard 5 pro Spieler |
+| Muss rein | `!!` | weiß | +3 | Will ich unbedingt spielen – **begrenzt**, Standard 5 pro Spieler |
 | Gerne | `+` | grün | +1 | Fände ich gut |
 | Egal | `·` | grau | 0 | Kann, muss aber nicht |
 | Lieber nicht | `−` | rot umrandet | −1 | Hätte ich lieber nicht drin |
@@ -282,8 +291,9 @@ So wird ausgewertet:
 - Die Overlay-URL enthält den Code ebenfalls. Beim Einrichten von OBS nicht live zeigen.
 - Die Firebase-Config in `js/config.js` (`apiKey` usw.) ist **kein** Geheimnis. Sie sagt nur, welches Projekt gemeint
   ist. Der Schutz sind die Datenbank-Regeln plus der Raum-Code. Die Config darf mit auf GitHub.
-- Die Regeln in `database.rules.json` sind bewusst einfach: kein Login, keine Nutzerkonten, keine Prüfung der
-  einzelnen Felder (außer der Länge des Challenge-Namens). Für eine Runde unter Freunden reicht das.
+- Die Regeln in `database.rules.json` sind bewusst einfach: kein Login, keine Nutzerkonten, kaum Prüfung der
+  einzelnen Felder (nur die Länge des Challenge-Namens und dass Spieler, Spiele und Vorschläge vollständig sind).
+  Für eine Runde unter Freunden reicht das.
   Keine persönlichen Daten in den Raum schreiben.
 - Code weitergegeben oder aus Versehen gezeigt? **Zuerst** den alten Raum in der Firebase-Konsole löschen:
   Realtime Database → „Daten“ → `rooms` → Eintrag mit dem Code → löschen (Symbol bzw. Menü am Eintrag).
@@ -392,21 +402,27 @@ Meist ein Fehler in `js/config.js`. Die häufigsten: `export ` vor `const fireba
 zweimal in der Datei (alte `= null`-Zeile nicht gelöscht), oder ein Tippfehler (fehlendes Komma, Anführungszeichen
 oder Klammer). Dann startet keins der Skripte. Im Browser F12 → „Konsole“ zeigt den Fehler mit Zeilennummer.
 
-**Beim „Anlegen“ oder „Beitreten“ kommt „Keine Berechtigung – sind die Datenbank-Regeln … veröffentlicht?“**
-Die Datenbank lehnt den Zugriff ab. Prüfen: Sind die Regeln aus „3. Regeln einfügen“ wirklich veröffentlicht
-(Reiter „Regeln“ muss den Inhalt von `database.rules.json` zeigen)? Im Browser F12 → „Konsole“ steht dann ein Fehler
-mit `permission_denied`.
+**„Keine Leseberechtigung – sind die Regeln aus database.rules.json veröffentlicht?“**
+Die Datenbank lässt die Seite den Raum nicht lesen. Prüfen: Sind die Regeln aus „3. Regeln einfügen“ wirklich
+veröffentlicht (Reiter „Regeln“ muss den Inhalt von `database.rules.json` zeigen)? Die Seite versucht es alle
+10 Sekunden neu, nach dem Veröffentlichen ist die Meldung also von selbst weg (OBS genauso).
+
+**„Die Datenbank hat das abgelehnt – vielleicht hat es gerade jemand gelöscht.“**
+Einmalig: Jemand hat den Eintrag (Spiel, Spieler, Vorschlag) gerade entfernt, während du ihn geändert hast – nichts zu
+tun. Kommt die Meldung bei jeder Aktion, auch beim „Anlegen“: Regeln wie oben prüfen. Im Browser F12 → „Konsole“
+steht dann ein Fehler mit `permission_denied`.
 
 **„Kein Raum mit diesem Code gefunden.“**
 Code oder Link beim Beitreten prüfen (am besten den ganzen Einladungslink einfügen).
 
 **„Diesen Raum gibt es nicht (mehr).“**
 Der gespeicherte Raum wurde gelöscht, oder der Browser kennt noch einen Raum aus dem lokalen Modus – den gibt es in
-Firebase nicht. Einfach neu anlegen oder mit dem Einladungslink beitreten. Liefert die Datenbank wegen falscher Regeln
-gar nichts, erscheint diese Meldung ebenfalls – dann die Regeln wie oben prüfen.
+Firebase nicht. Einfach neu anlegen oder mit dem Einladungslink beitreten.
 
-**Beim „Anlegen“ passiert gar nichts, auch keine Meldung.**
+**Beim „Beitreten“ kommt „Keine Verbindung zur Datenbank“.**
 Keine Verbindung zu Firebase (Internet, Adblocker oder Firewall blockt `firebasedatabase.app`). Siehe „Keine Verbindung“.
+„Anlegen“ klappt auch offline: Der Raum erscheint sofort und wird gespeichert, sobald die Verbindung da ist – Seite bis
+dahin offen lassen.
 
 **„Firebase konnte nicht geladen werden.“**
 Das Firebase-SDK ließ sich nicht laden (kein Internet, Adblocker/Firewall blockt `gstatic.com`), oder ein Wert in
@@ -414,12 +430,13 @@ Das Firebase-SDK ließ sich nicht laden (kein Internet, Adblocker/Firewall block
 
 **Oben steht „Keine Verbindung“.**
 Die Seite erreicht die Datenbank nicht: Du bist offline, oder ein Adblocker/Firewall blockt `firebasedatabase.app`.
-Wird die Seite in dem Zustand geladen, bleibt sie meist bei „Lade …“ stehen. Direkt nach dem Laden kann der Hinweis kurz
-aufblitzen – das ist normal. Änderungen ohne Verbindung werden nachgetragen, sobald die Verbindung zurück ist, aber
-nur, solange der Tab offen bleibt. Neu laden oder Schließen verwirft sie.
+Wird die Seite in dem Zustand geladen, bleibt sie meist bei „Lade …“ stehen (der Hinweis erscheint dann nach 3 Sekunden).
+Änderungen ohne Verbindung werden nachgetragen, sobald die Verbindung zurück ist, aber nur, solange der Tab offen
+bleibt. Neu laden, Schließen oder ein Wechsel auf eine andere Seite (Spiele/Voting/Overlay) verwirft sie – der Browser
+fragt deshalb vorher nach („Seite verlassen?“). Dort „Abbrechen“ wählen und warten, bis der Hinweis weg ist.
 
 **OBS zeigt nichts.**
-Reihenfolge prüfen: Läuft die Seite im Online-Modus (kein gelber Hinweis)? Enthält die URL `room=` und `player=`?
+Reihenfolge prüfen: Läuft die Seite im Online-Modus (kein Hinweis „Lokaler Modus“ oben)? Enthält die URL `room=` und `player=`?
 Sind Breite und Höhe in der Browser-Quelle größer als 0? Danach in OBS bei der Quelle auf „Aktualisieren“ klicken.
 
 **Kann jemand Fremdes unsere Daten sehen?**

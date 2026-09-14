@@ -145,6 +145,57 @@ eq(await A.importGamesAsSuggestions(p1), 0, 'Import ohne Duplikate');
 await A.removeSuggestion(s1); await tick();
 eq(room.voting.votes[p1][s1] ?? null, null, 'Stimmen mit Vorschlag entfernt');
 
+// --- Mehrere Geräte / veraltete Stände ---
+eq(store.pendingSince(), null, 'lokal nichts unbestätigt');
+eq(await store.transaction(m.roomPath(KEY, 'runs/niemand'), () => undefined), false, 'Transaktion abbrechen');
+const [ga, gb] = m.sortedGames(room).map((g) => g.id);
+await A.startGame(p1, ga); await tick();
+const startedA = m.runOf(room, p1).games[ga].startedAt;
+fakeNow += 3_000;
+await A.startGame(p1, ga); await tick();
+eq(m.runOf(room, p1).games[ga].startedAt, startedA, 'Start auf laufendem Spiel behält Startzeit');
+const doneAt = fakeNow;
+await A.finishGame(p1, gb); await tick();
+fakeNow += 1_000;
+await A.finishGame(p1, gb); await tick();
+eq(m.runOf(room, p1).games[gb].doneAt, doneAt, 'zweites „Gewonnen“ ändert nichts');
+await A.startGame(p1, gb); await tick();
+eq([m.runOf(room, p1).games[gb].done, m.runOf(room, p1).activeGame], [true, ga], 'Start auf gewonnenem Spiel ändert nichts');
+await A.pauseTotal(p2); await tick();
+eq(room.runs?.[p2] ?? null, null, 'Pause ohne Run legt nichts an');
+await A.finishChallenge(p2); await tick();
+await A.startTotal(p2); await tick();
+eq([m.runOf(room, p2).total.finished, m.timerRunning(m.runOf(room, p2).total)], [true, false], '„Weiter“ startet beendete Challenge nicht');
+await A.removeGame(gb); await tick();
+await A.renameGame(gb, 'Geist'); await A.reorderGames([gb, ga]); await A.startGame(p1, gb); await tick();
+eq(room.games[gb] ?? null, null, 'veraltetes Umbenennen/Sortieren legt gelöschtes Spiel nicht neu an');
+eq(m.runOf(room, p1).games[gb] ?? null, null, 'Start eines gelöschten Spiels legt keine Zeit an');
+eq(m.sortedGames({ games: { x: { order: 0 }, y: { title: 'Y', order: 1, createdAt: 1 } } }).map((g) => g.id), ['y'], 'Einträge ohne Titel ignoriert');
+eq(m.suggestionKey(' Mario.Kart [8] / DX '), 't_mario_kart _8_ _ dx', 'Vorschlags-Schlüssel ohne verbotene Zeichen');
+const sx = await A.addSuggestion('Zelda', p1); await tick();
+eq(sx, 't_zelda', 'Vorschlag bekommt Schlüssel aus dem Titel');
+await A.renameSuggestion(sx, 'Zelda BotW'); await tick();
+const sy = await A.addSuggestion('zelda', p2); await tick();
+eq(sy !== sx && room.voting.suggestions[sx].title === 'Zelda BotW', true, 'umbenannter Vorschlag wird nicht überschrieben');
+await A.removeSuggestion(sy); await tick();
+await A.renameSuggestion(sy, 'Geist'); await tick();
+eq(room.voting.suggestions[sy] ?? null, null, 'veraltetes Umbenennen legt gelöschten Vorschlag nicht neu an');
+const sc = await A.addSuggestion('Celeste', p1); await tick();
+await A.removeSuggestion(sc); await tick();
+await store.set(m.roomPath(KEY, `voting/votes/${p2}/${sc}`), 'veto'); await tick();   // verspätete Stimme eines Offline-Geräts
+eq(await A.addSuggestion('Celeste', p1), sc, 'gleicher Titel → gleicher Schlüssel'); await tick();
+eq(room.voting.votes?.[p2]?.[sc] ?? null, null, 'alte Stimme lebt beim neuen Vorschlag nicht wieder auf');
+await store.set(m.roomPath(KEY, `voting/suggestions/${store.newKey()}`), { title: 'zelda botw', by: p2, createdAt: fakeNow }); await tick();
+await A.setVotingSettings({ targetCount: 0 }); await tick();
+eq(m.votingResults(room).filter((r) => r.duplicate).map((r) => [r.title, r.rank, r.inList]), [['zelda botw', null, false]], 'doppelter Titel markiert, ohne Rang');
+await A.applyVotingResult(); await tick();
+eq(m.sortedGames(room).filter((g) => g.title.toLowerCase() === 'zelda botw').length, 1, 'doppelte Titel nur einmal in der Liste');
+await A.addGame('Neu'); await A.addGame('neu'); await tick();
+eq(await A.importGamesAsSuggestions(p1), 1, 'gleiche Titel in der Spieleliste nur einmal als Vorschlag');
+await A.addGame('Worms W.M.D'); await A.addGame('Worms W_M_D'); await tick();
+eq(await A.importGamesAsSuggestions(p1), 2, 'Titel mit gleichem Schlüssel: beide importiert'); await tick();
+eq(m.sortedSuggestions(room).filter((s) => s.title.startsWith('Worms')).length, 2, 'beide Worms-Vorschläge vorhanden');
+
 // --- Overlay ---
 await A.setOverlay(p1, { width: 400, bogus: 1, showTitle: false }); await tick();
 eq(m.overlaySettings(room, p1).width, 400, 'Overlay-Breite');

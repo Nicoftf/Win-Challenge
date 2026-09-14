@@ -96,6 +96,8 @@ async function flush() {
     ctx.refresh();
   }
 }
+// beforeunload zuerst: so zählt shell.js (eigener beforeunload-Listener, später angemeldet) den Rest schon als offen
+window.addEventListener('beforeunload', () => { flush(); });
 window.addEventListener('pagehide', () => { flush(); });
 
 // ------------------------------------------------------------
@@ -193,7 +195,7 @@ const colorField = (ctx, s, key, label, help = '') => {
   const hex = normalizeHex(val(s, key)) || normalizeHex(OVERLAY_DEFAULTS[key]) || '#000000';
   const onHex = (e) => {
     const h = normalizeHex(e.target.value);
-    if (!h) { toast('Farbe bitte als Hex-Wert, z.B. #f2c14e', 'error'); e.target.value = hex; return; }
+    if (!h) { toast('Farbe bitte als Hex-Wert, z.B. #c70039', 'error'); e.target.value = hex; return; }
     e.target.value = h;
     const picker = e.target.closest('.oe-color')?.querySelector('input[type=color]');
     if (picker) picker.value = h;
@@ -386,7 +388,7 @@ const previewCard = (ctx, s) => {
         <span class="muted small tabular" title=${extra ? `inkl. ${extra} px Platz für den Schatten` : ''}>${w} × ${h} px</span>
         <div class="btn-group right" role="group" aria-label="Vorschau-Hintergrund">
           ${BACKGROUNDS.map(([id, label]) => html`
-            <button class="btn btn-sm ${classMap({ on: ui.bg === id })}" @click=${() => setBg(ctx, id)}>${label}</button>`)}
+            <button class="btn btn-sm ${classMap({ on: ui.bg === id })}" aria-pressed=${ui.bg === id ? 'true' : 'false'} @click=${() => setBg(ctx, id)}>${label}</button>`)}
         </div>
       </div>
       <div class="oe-stage ${ui.bg}">

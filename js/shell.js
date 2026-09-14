@@ -89,7 +89,8 @@ export async function copyText(text) {
 export function friendlyError(e, fallback = 'Das hat nicht geklappt.') {
   const raw = String((e && (e.code || e.message)) || e || '');
   if (/permission/i.test(raw)) {
-    return 'Keine Berechtigung – sind die Datenbank-Regeln aus database.rules.json veröffentlicht? (README → Firebase einrichten)';
+    // Schreiben abgelehnt: meist hat jemand den Eintrag gerade gelöscht (Regeln verlangen vollständige Einträge)
+    return 'Die Datenbank hat das abgelehnt – vielleicht hat es gerade jemand gelöscht. Passiert das ständig: Regeln aus database.rules.json neu veröffentlichen (README → Firebase einrichten).';
   }
   return (e && e.message) || (typeof e === 'string' && e) || fallback;
 }
@@ -168,13 +169,13 @@ export async function boot(page) {
     ctx.store = await createStore({ firebaseConfig });
   } catch (e) {
     console.error(e);
-    phase = 'error';
-    errorMsg = 'Firebase konnte nicht geladen werden. Prüfe js/config.js und deine Internetverbindung.';
-    draw();
+    // direkt rendern, nicht draw(): die Templates unten sind hier noch nicht initialisiert
+    render(html`<div class="onboarding"><div class="banner banner-error">
+      Firebase konnte nicht geladen werden. Prüfe deine Internetverbindung (und js/config.js) und lade die Seite neu.
+    </div></div>`, app);
     return;
   }
   ctx.mode = ctx.store.mode;
-  ctx.store.onConnection((on) => { ctx.online = on; draw(); });
 
   // Raum-Code aus URL übernehmen
   const url = new URL(location.href);
@@ -194,9 +195,19 @@ export async function boot(page) {
     roomLoaded = false;
     phase = 'loading';
     draw();
-    unsubRoom = ctx.store.subscribe(model.roomPath(key), (room) => {
+    unsubRoom = ctx.store.subscribe(model.roomPath(key), (room, err) => {
       roomLoaded = true;
       ctx.room = room;
+      if (err) {
+        // Lesefehler: Firebase meldet sich danach nicht mehr → selbst neu versuchen, Raum-Code behalten
+        phase = 'error';
+        errorMsg = (/permission/i.test(String(err.code || err.message))
+          ? 'Keine Leseberechtigung – sind die Regeln aus database.rules.json veröffentlicht?'
+          : 'Die Challenge konnte nicht geladen werden.') + ' Neuer Versuch in 10 Sekunden …';
+        draw();
+        setTimeout(() => { if (ctx.roomKey === key && phase === 'error') openRoom(key); }, 10000);
+        return;
+      }
       if (!room) { phase = 'room'; errorMsg = 'Diesen Raum gibt es nicht (mehr). Bitte Code prüfen.'; draw(); return; }
       errorMsg = '';
       phase = 'ready';
@@ -206,18 +217,36 @@ export async function boot(page) {
 
   async function createRoom(name) {
     const key = model.generateRoomKey();
-    await ctx.store.set(model.roomPath(key, 'meta'), { name: name.trim().slice(0, model.ROOM_NAME_MAX) || 'Win-Challenge', createdAt: ctx.store.now() });
-    await ctx.store.set(model.roomPath(key, 'voting/settings'), model.VOTING_DEFAULTS);
+    // Ein Schreibvorgang auf den ganzen Raum. Nicht auf die Server-Bestätigung warten, bevor der Raum
+    // geöffnet wird: Firebase zeigt ihn sofort aus dem lokalen Stand an, offline hinge „Anlegen“ sonst.
+    const write = ctx.store.set(model.roomPath(key), {
+      meta: { name: name.trim().slice(0, model.ROOM_NAME_MAX) || 'Win-Challenge', createdAt: ctx.store.now() },
+      voting: { settings: model.VOTING_DEFAULTS },
+    });
     storeRoomKey(key);
     ctx.playerId = null; storePlayerId(null);
     openRoom(key);
+    try {
+      await write;
+    } catch (e) {
+      // abgelehnt (z.B. Regeln nicht veröffentlicht): Raum nicht behalten, zurück zum Formular
+      if (ctx.roomKey === key) leaveRoom();
+      throw /permission/i.test(String(e?.code || e?.message))
+        ? new Error('Die Datenbank hat das Anlegen abgelehnt – sind die Regeln aus database.rules.json veröffentlicht? (README → Firebase einrichten)')
+        : e;
+    }
   }
   async function joinRoom(input) {
     let key = String(input || '').trim();
     try { const u = new URL(key); key = u.searchParams.get('room') || key; } catch { /* kein Link */ }
     key = key.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!model.isValidRoomKey(key)) { toast('Das sieht nicht nach einem gültigen Code aus.', 'error'); return; }
-    const meta = await ctx.store.get(model.roomPath(key, 'meta'));
+    // get() wartet ohne Verbindung unbegrenzt → nach 8 s aufgeben, damit der Button wieder frei wird
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Keine Verbindung zur Datenbank – versuch es gleich nochmal.')), 8000);
+    });
+    const meta = await Promise.race([ctx.store.get(model.roomPath(key, 'meta')), timeout]).finally(() => clearTimeout(timer));
     if (!meta) { toast('Kein Raum mit diesem Code gefunden.', 'error'); return; }
     storeRoomKey(key);
     ctx.playerId = null; storePlayerId(null);
@@ -253,7 +282,7 @@ export async function boot(page) {
         <strong>Lokaler Modus.</strong> Daten bleiben nur in diesem Browser – kein Sync mit den anderen, kein OBS-Overlay.
         Für den echten Einsatz Firebase in <code>js/config.js</code> eintragen (siehe README).
       </div>`
-    : (!ctx.online ? html`<div class="banner banner-offline">Keine Verbindung – Änderungen werden gespeichert, sobald du wieder online bist.</div>` : nothing);
+    : (!ctx.online ? html`<div class="banner banner-offline">Keine Verbindung – Änderungen werden nachgeholt, sobald du wieder online bist. Seite bis dahin nicht neu laden.</div>` : nothing);
 
   const roomScreen = () => html`
     <div class="onboarding">
@@ -296,7 +325,13 @@ export async function boot(page) {
             e.preventDefault();
             const name = e.target.name.value.trim();
             if (!name) return;
-            await guarded(async () => { const pid = await ctx.actions.addPlayer(name); ctx.setPlayer(pid); }, e.target);
+            await guarded(async () => {
+              // sofort auswählen, nicht erst nach der Server-Bestätigung (offline hinge „Los“ sonst)
+              const pid = ctx.store.newKey();
+              const job = ctx.actions.addPlayer(name, pid);
+              ctx.setPlayer(pid);
+              await job;
+            }, e.target);
           }}>
             <input class="input grow" name="name" placeholder="Neuer Spieler: dein Name" autocomplete="off" required>
             <button class="btn btn-primary" type="submit">Los</button>
@@ -392,6 +427,25 @@ export async function boot(page) {
     ctx.now = ctx.store.now();
     page.tick(ctx);
   }, 250);
+
+  // Verbindung. Erst hier anmelden: Firebase ruft den Callback sofort auf, draw() braucht die Templates oben.
+  // .info/connected meldet beim Laden zunächst „false“ → Offline-Banner erst nach 3 s ohne Verbindung zeigen.
+  let connected = false;
+  let graceOver = false;
+  setTimeout(() => { graceOver = true; if (!connected && ctx.online) { ctx.online = false; draw(); } }, 3000);
+  ctx.store.onConnection((on) => {
+    connected = on;
+    if (on) graceOver = true;
+    const online = on || !graceOver;
+    if (online !== ctx.online) { ctx.online = online; draw(); }
+  });
+
+  // Nicht bestätigte Änderungen liegen nur im Speicher dieser Seite: vor Neuladen/Seitenwechsel warnen,
+  // wenn offline oder ein Schreibvorgang schon länger als 1,5 s hängt
+  window.addEventListener('beforeunload', (e) => {
+    const since = ctx.store.pendingSince();
+    if (since !== null && (!connected || Date.now() - since > 1500)) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   if (ctx.roomKey) openRoom(ctx.roomKey);
   else { phase = 'room'; draw(); }

@@ -83,6 +83,20 @@ try {
   })()`);
   check(start.title === start.active, 'Start macht das Spiel aktiv', start);
   check(start.running === 1, 'nur ein Spiel läuft gleichzeitig', start.running);
+  await b.eval(`document.querySelector('.game-row.active').scrollIntoView({ block: 'center' })`);
+  await sleep(300);
+  await b.shot(SHOTS + 'index-active.png');
+
+  // Gefahr-Dialog (Spiel entfernen) nur ansehen, dann abbrechen
+  await b.eval(`(async () => {
+    const d = document.querySelector('.game-row details.menu');
+    d.querySelector('summary').click();
+    await new Promise((r) => setTimeout(r, 200));
+    [...d.querySelectorAll('.menu-list button')].find((x) => /Entfernen/.test(x.textContent)).click();
+    await new Promise((r) => setTimeout(r, 300));
+  })()`);
+  await b.shot(SHOTS + 'dialog-danger.png');
+  await b.eval(`(async () => { document.querySelector('.modal-actions .btn').click(); await new Promise((r) => setTimeout(r, 200)); })()`);
 
   const finish = await b.eval(`(async () => {
     const row = document.querySelector('.game-row.active');
@@ -161,6 +175,11 @@ try {
   check(/5× „Muss rein“/.test(vote.toast), 'Muss-rein-Budget wird durchgesetzt', vote.toast);
   check(['Nico', 'Lukas', 'Tim', 'Jonas'].every((n) => vote.head.includes(n)), 'Ergebnis-Tabelle hat eine Spalte pro Spieler', vote.head);
   check(vote.cut && vote.veto >= 1, 'Grenzlinie und Veto sichtbar', { cut: vote.cut, veto: vote.veto });
+  await b.eval(`(async () => { const f = document.querySelector('details.explain'); if (f) f.open = true; scrollTo(0, 0); await new Promise((r) => setTimeout(r, 300)); })()`);
+  await b.shot(SHOTS + 'voting-legend.png');
+  await b.eval(`(async () => { document.querySelector('.result-table').scrollIntoView({ block: 'start' }); await new Promise((r) => setTimeout(r, 300)); })()`);
+  await b.shot(SHOTS + 'voting-result.png');
+  await b.eval(`(async () => { document.querySelector('details.explain').open = false; scrollTo(0, 0); await new Promise((r) => setTimeout(r, 200)); })()`);
 
   const multi = await b.eval(`(async () => {
     const before = document.querySelectorAll('.sug').length;

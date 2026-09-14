@@ -30,6 +30,7 @@ let store = null;
 let room = null;
 let loaded = false;          // erste Daten vom Store angekommen
 let fatal = '';              // harter Fehler (z.B. Firebase lädt nicht)
+let readError = '';          // Lesefehler der Datenbank (z.B. Regeln), wird alle 10 s neu versucht
 let showConnectHint = false; // nach 3 s ohne Daten
 let view = null;             // abgeleitete Anzeige-Daten des letzten Renders
 const ui = { overflow: false };
@@ -260,7 +261,7 @@ function box(v) {
     '--muted': s.mutedColor,
     '--line': rgba(s.mutedColor, 0.25),
     '--accent': s.accentColor,
-    '--accent-soft': rgba(s.accentColor, 0.14),
+    '--accent-soft': rgba(s.accentColor, 0.1),
     '--done': s.doneColor,
     '--font': fontStack(s.fontFamily),
     '--fs': `${s.fontSize}px`,
@@ -312,13 +313,15 @@ function draw() {
   view = null;
   const editorHint = 'Kopiere die Overlay-URL im Overlay-Editor (overlay-editor.html).';
   if (fatal) {
-    tpl = hint(fatal, 'Prüfe js/config.js und die Internetverbindung.');
+    tpl = hint(fatal, 'Neuer Versuch in 10 Sekunden … Sonst Internetverbindung und js/config.js prüfen.');
   } else if (!roomKey) {
     tpl = hint('In der URL fehlt der Raum-Code (?room=…).', editorHint);
   } else if (!model.isValidRoomKey(roomKey)) {
     tpl = hint('Der Raum-Code in der URL ist ungültig.', editorHint);
   } else if (!playerId) {
     tpl = hint('In der URL fehlt der Spieler (&player=…).', editorHint);
+  } else if (readError) {
+    tpl = hint(readError, 'Neuer Versuch alle 10 Sekunden …');
   } else if (!loaded) {
     tpl = showConnectHint
       ? hint('Verbinde …', 'Wenn das länger dauert: Internetverbindung und js/config.js prüfen.')
@@ -482,15 +485,29 @@ async function main() {
     console.error(e);
     fatal = 'Verbindung zur Datenbank fehlgeschlagen.';
     redraw();
+    // OBS-Quelle bleibt unbeaufsichtigt offen → selbst neu laden (ein fehlgeschlagener Modul-Import bleibt sonst hängen)
+    setTimeout(() => location.reload(), 10000);
     return;
   }
   store.onConnection((on) => { if (!on) console.info('Overlay: keine Verbindung – Timer laufen lokal weiter.'); });
-  store.subscribe(model.roomPath(roomKey), (data) => {
+  const listen = () => store.subscribe(model.roomPath(roomKey), (data, err) => {
     clearTimeout(connectTimer);
     loaded = true;
+    if (err) {
+      // Firebase beendet den Listener nach einem Lesefehler → selbst neu versuchen (OBS-Quelle bleibt ja offen)
+      room = null;
+      readError = /permission/i.test(String(err.code || err.message))
+        ? 'Keine Leseberechtigung – Datenbank-Regeln prüfen (database.rules.json).'
+        : 'Die Daten konnten nicht geladen werden.';
+      redraw();
+      setTimeout(listen, 10000);
+      return;
+    }
+    readError = '';
     room = data;
     redraw();
   });
+  listen();
 }
 
 main().catch((e) => {

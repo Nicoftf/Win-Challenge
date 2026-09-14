@@ -13,13 +13,18 @@
 //                games: { [gid]: { elapsed, startedAt|null, done, doneAt|null } } } }
 //  overlay:   { [pid]: { ...OVERLAY_DEFAULTS } }                 Overlay-Einstellungen pro Spieler
 //  voting:    { settings: { mustBudget, vetoBudget, targetCount, closed },
-//               suggestions: { [sid]: { title, by, createdAt } },
+//               suggestions: { [sid]: { title, by, createdAt } },       sid = suggestionKey(title) oder Push-Key
 //               votes: { [pid]: { [sid]: 'must'|'yes'|'meh'|'no'|'veto' } } }
 //
 //  Timer: elapsed = bisher gesammelte ms, startedAt = Serverzeit des Starts (null = pausiert).
 //  Angezeigte Zeit = elapsed + (startedAt ? now - startedAt : 0)
+//
+//  Mehrere Geräte: Timer-Aktionen laufen als Transaktion auf runs/{pid}. Einzelne Felder (Name, Titel,
+//  Reihenfolge) werden nur geschrieben, wenn der Eintrag noch existiert; database.rules.json weist zusätzlich
+//  Teil-Einträge ohne Pflichtfelder ab (z.B. verspätete Schreibvorgänge eines Geräts, das offline war).
 
-export const PLAYER_COLORS = ['#f2c14e', '#5b9cf6', '#56c271', '#e5534b', '#b07cf0', '#f28c4e', '#3fc1c9', '#e879a8'];
+// Kein Rot (= Akzent/Veto); Gelb und Grün (= gewonnen) erst ab Spieler 5, Rosa (nah am Akzent) zuletzt
+export const PLAYER_COLORS = ['#5b9cf6', '#3fc1c9', '#b07cf0', '#f28c4e', '#56c271', '#f2c14e', '#a3a3a8', '#e879a8'];
 
 /** maximale Länge des Challenge-Namens (siehe database.rules.json) */
 export const ROOM_NAME_MAX = 80;
@@ -62,12 +67,12 @@ export const OVERLAY_DEFAULTS = {
   borderWidth: 1,
   shadow: true,
   // Farben
-  bgColor: '#101114',
-  bgOpacity: 0.85,
-  borderColor: '#2a2d34',
+  bgColor: '#0a0a0a',
+  bgOpacity: 0.92,           // rote Schrift bleibt auch über hellen Spielszenen lesbar
+  borderColor: '#2a2a2e',
   textColor: '#ffffff',
-  mutedColor: '#9a9ea8',
-  accentColor: '#f2c14e',
+  mutedColor: '#a3a3a8',
+  accentColor: '#f54778',    // hellere Variante von #c70039, damit Zeiten/Label auf dem Stream lesbar bleiben
   doneColor: '#56c271',
   // Schrift
   fontFamily: 'IBM Plex Sans',
@@ -113,16 +118,18 @@ export function entries(obj) {
   return Object.entries(obj || {});
 }
 
-/** Spiele als sortiertes Array [{id, title, order, createdAt}] */
+/** Spiele als sortiertes Array [{id, title, order, createdAt}]. Einträge ohne Titel werden ignoriert. */
 export function sortedGames(room) {
   return entries(room?.games)
+    .filter(([, g]) => typeof g?.title === 'string')
     .map(([id, g]) => ({ id, ...g }))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.createdAt ?? 0) - (b.createdAt ?? 0));
 }
 
-/** Spieler als sortiertes Array [{id, name, color}] */
+/** Spieler als sortiertes Array [{id, name, color}]. Einträge ohne Namen werden ignoriert. */
 export function sortedPlayers(room) {
   return entries(room?.players)
+    .filter(([, p]) => typeof p?.name === 'string')
     .map(([id, p]) => ({ id, ...p }))
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
 }
@@ -149,8 +156,18 @@ export function votingSettings(room) {
 
 export function sortedSuggestions(room) {
   return entries(room?.voting?.suggestions)
+    .filter(([, s]) => typeof s?.title === 'string')
     .map(([id, s]) => ({ id, ...s }))
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+}
+
+/**
+ * Schlüssel eines Vorschlags aus dem Titel. Schlagen zwei Geräte gleichzeitig denselben Titel vor
+ * (oder eins davon offline), landen beide im selben Eintrag statt in zwei Kopien mit geteilten Stimmen.
+ * Verbotene Firebase-Zeichen (. # $ [ ] / Steuerzeichen) werden ersetzt; höchstens 480 Byte.
+ */
+export function suggestionKey(title) {
+  return 't_' + Array.from(String(title).trim().toLowerCase().replace(/[.#$\[\]\/\x00-\x1f\x7f]/g, '_')).slice(0, 120).join('');
 }
 
 /** Wie viele 'must' / 'veto' hat ein Spieler vergeben */
@@ -177,6 +194,7 @@ export function voteUsage(room, pid) {
  *   - veto: Spiel ist raus (eliminated), egal wie viele Punkte
  *   - Reihenfolge: Punkte ↓, must ↓, yes ↓, no ↑, älterer Vorschlag zuerst
  *   - inList: die oberen targetCount nicht-eliminierten (targetCount 0 = alle)
+ *   - duplicate: gleicher Titel steht schon weiter oben (kein Rang, nicht in der Liste)
  */
 export function votingResults(room) {
   const settings = votingSettings(room);
@@ -205,8 +223,12 @@ export function votingResults(room) {
   );
   const target = settings.targetCount > 0 ? settings.targetCount : Infinity; // 0 = alle nicht-vetoten
   let rank = 0;
+  const seen = new Set();   // gleicher Titel mehrfach (z.B. gleichzeitig vorgeschlagen) → nur der beste zählt
   for (const r of rows) {
     if (r.eliminated) { r.rank = null; r.inList = false; continue; }
+    const key = r.title.trim().toLowerCase();
+    if (seen.has(key)) { r.rank = null; r.inList = false; r.duplicate = true; continue; }
+    seen.add(key);
     rank++;
     r.rank = rank;
     r.inList = rank <= target;
@@ -237,8 +259,35 @@ export function bindActions(store, roomKey, getRoom) {
   const now = () => store.now();
   const room = () => getRoom() || {};
 
-  /** Timer stoppen → neuer Timer-Zustand */
-  const stopped = (t) => ({ ...(t || {}), elapsed: timerValue(t, now()), startedAt: null });
+  /** Timer zum Zeitpunkt at stoppen → neuer Timer-Zustand */
+  const stopped = (timer, at) => ({ ...(timer || {}), elapsed: timerValue(timer, at), startedAt: null });
+
+  /**
+   * runs/{pid} in einer Transaktion ändern. fn(run) ändert run direkt (total, activeGame, games sind immer da)
+   * und gibt false zurück, wenn nichts zu tun ist. Firebase ruft fn erneut mit dem Serverstand auf, wenn ein
+   * anderes Gerät dazwischen geschrieben hat – so überschreibt ein veralteter Stand keine neueren Zeiten.
+   * create: auch ausführen, wenn es für den Spieler noch keinen Run gibt.
+   */
+  /**
+   * Ein Titel-Schlüssel kann schon einmal vergeben gewesen sein. Stimmen, die noch darauf liegen (z.B. verspätet von
+   * einem Gerät, das offline war), sollen beim neuen Vorschlag nicht wieder aufleben. Nur löschen, was hier sichtbar ist.
+   */
+  const clearStaleVotes = (r, sid, map) => {
+    for (const [p, votes] of entries(r.voting?.votes)) {
+      if (votes?.[sid] != null) map[P(`voting/votes/${p}/${sid}`)] = null;
+    }
+  };
+
+  const changeRun = (pid, fn, { create = false } = {}) => store.transaction(P(`runs/${pid}`), (cur) => {
+    if (!cur && !create) return undefined;
+    const run = cur ? structuredClone(cur) : {};
+    run.total = { elapsed: 0, startedAt: null, finished: false, ...run.total };
+    run.activeGame = run.activeGame ?? null;
+    run.games = run.games || {};
+    if (fn(run) === false) return undefined;
+    if (!Object.keys(run.games).length) delete run.games;   // leere Objekte gibt es in Firebase nicht
+    return run;
+  });
 
   const actions = {
     // ---------- Raum ----------
@@ -247,17 +296,19 @@ export function bindActions(store, roomKey, getRoom) {
     },
 
     // ---------- Spieler ----------
-    async addPlayer(name) {
+    /** id optional vorgeben, z.B. um den Spieler schon vor der Server-Bestätigung auszuwählen */
+    async addPlayer(name, id = store.newKey()) {
       const existing = sortedPlayers(room());
       const color = PLAYER_COLORS[existing.length % PLAYER_COLORS.length];
-      const id = store.newKey();
       await store.set(P(`players/${id}`), { name: String(name).trim(), color, createdAt: now() });
       return id;
     },
     async renamePlayer(pid, name) {
+      if (!room().players?.[pid]) return;   // inzwischen entfernt → nicht als halben Eintrag neu anlegen
       await store.set(P(`players/${pid}/name`), String(name).trim());
     },
     async setPlayerColor(pid, color) {
+      if (!room().players?.[pid]) return;
       await store.set(P(`players/${pid}/color`), color);
     },
     async removePlayer(pid) {
@@ -281,22 +332,28 @@ export function bindActions(store, roomKey, getRoom) {
     },
     async renameGame(gid, title) {
       title = String(title || '').trim();
-      if (!title) return;
+      if (!title || !room().games?.[gid]) return;
       await store.set(P(`games/${gid}/title`), title);
     },
     async removeGame(gid) {
-      const r = room();
-      const map = { [P(`games/${gid}`)]: null };
-      for (const pid of Object.keys(r.runs || {})) {
-        map[P(`runs/${pid}/games/${gid}`)] = null;
-        if (r.runs[pid].activeGame === gid) map[P(`runs/${pid}/activeGame`)] = null;
+      // Zeiten je Spieler per Transaktion aufräumen: ein normales update unter runs/{pid} würde noch
+      // unbestätigte Timer-Transaktionen dieses Geräts abbrechen (z.B. offline geklickt). Alle starten, dann warten.
+      const jobs = [store.set(P(`games/${gid}`), null)];
+      for (const pid of Object.keys(room().runs || {})) {
+        jobs.push(changeRun(pid, (run) => {
+          if (!run.games[gid] && run.activeGame !== gid) return false;
+          delete run.games[gid];
+          if (run.activeGame === gid) run.activeGame = null;
+        }));
       }
-      await store.update(map);
+      await Promise.all(jobs);
     },
     /** neue Reihenfolge als Array von Spiel-IDs */
     async reorderGames(orderedIds) {
+      const games = room().games || {};
       const map = {};
-      orderedIds.forEach((gid, i) => { map[P(`games/${gid}/order`)] = i; });
+      orderedIds.filter((gid) => games[gid]).forEach((gid, i) => { map[P(`games/${gid}/order`)] = i; });
+      if (!Object.keys(map).length) return;
       await store.update(map);
     },
     async moveGame(gid, delta) {
@@ -317,85 +374,94 @@ export function bindActions(store, roomKey, getRoom) {
     },
 
     // ---------- Timer ----------
+    // Zeitpunkt t = Klick. Wiederholt Firebase die Transaktion später (z.B. nach Offline-Phase), zählt trotzdem der Klick.
     async startGame(pid, gid) {
-      const run = runOf(room(), pid);
       const t = now();
-      const map = {};
-      // anderes laufendes Spiel pausieren
-      for (const [otherId, tg] of Object.entries(run.games || {})) {
-        if (otherId !== gid && timerRunning(tg)) map[P(`runs/${pid}/games/${otherId}`)] = stopped(tg);
-      }
-      const g = run.games?.[gid] || {};
-      map[P(`runs/${pid}/games/${gid}`)] = { elapsed: g.elapsed || 0, startedAt: t, done: false, doneAt: null };
-      map[P(`runs/${pid}/activeGame`)] = gid;
-      // Gesamtzeit automatisch mitstarten
-      if (!timerRunning(run.total)) {
-        map[P(`runs/${pid}/total`)] = { elapsed: run.total?.elapsed || 0, startedAt: t, finished: false };
-      }
-      await store.update(map);
+      await changeRun(pid, (run) => {
+        // Spiel inzwischen entfernt / Liste ersetzt, oder auf einem anderen Gerät schon gewonnen
+        if (!room().games?.[gid] || run.games[gid]?.done) return false;
+        // anderes laufendes Spiel pausieren
+        for (const [otherId, tg] of Object.entries(run.games)) {
+          if (otherId !== gid && timerRunning(tg)) run.games[otherId] = stopped(tg, t);
+        }
+        const g = run.games[gid] || {};
+        // läuft es schon (z.B. auf einem anderen Gerät gestartet), bleibt der alte Startzeitpunkt
+        run.games[gid] = { elapsed: g.elapsed || 0, startedAt: g.startedAt || t, done: false, doneAt: null };
+        run.activeGame = gid;
+        // Gesamtzeit automatisch mitstarten
+        if (!timerRunning(run.total)) run.total = { elapsed: run.total.elapsed || 0, startedAt: t, finished: false };
+      }, { create: true });
     },
     async pauseGame(pid, gid) {
-      const run = runOf(room(), pid);
-      const g = run.games?.[gid];
-      if (!timerRunning(g)) return;
-      await store.set(P(`runs/${pid}/games/${gid}`), stopped(g));
+      const t = now();
+      await changeRun(pid, (run) => {
+        if (!timerRunning(run.games[gid])) return false;
+        run.games[gid] = stopped(run.games[gid], t);
+      });
     },
     async finishGame(pid, gid) {
-      const r = room();
-      const run = runOf(r, pid);
       const t = now();
-      const g = run.games?.[gid] || {};
-      const map = {
-        [P(`runs/${pid}/games/${gid}`)]: { ...stopped(g), done: true, doneAt: t },
-      };
-      if (run.activeGame === gid) map[P(`runs/${pid}/activeGame`)] = null;
-      // alle fertig? → Gesamtzeit stoppen
-      const games = sortedGames(r);
-      const allDone = games.length > 0 && games.every((x) => x.id === gid || run.games?.[x.id]?.done);
-      if (allDone) map[P(`runs/${pid}/total`)] = { ...stopped(run.total), finished: true };
-      await store.update(map);
+      await changeRun(pid, (run) => {
+        const games = sortedGames(room());
+        if (!games.some((x) => x.id === gid)) return false;
+        const g = run.games[gid] || {};
+        if (g.done) return false;
+        run.games[gid] = { ...stopped(g, t), done: true, doneAt: t };
+        if (run.activeGame === gid) run.activeGame = null;
+        // alle fertig? → Gesamtzeit stoppen
+        if (games.every((x) => run.games[x.id]?.done)) run.total = { ...stopped(run.total, t), finished: true };
+      }, { create: true });
     },
     async unfinishGame(pid, gid) {
-      const run = runOf(room(), pid);
-      const g = run.games?.[gid] || {};
-      await store.update({
-        [P(`runs/${pid}/games/${gid}`)]: { ...g, elapsed: g.elapsed || 0, startedAt: null, done: false, doneAt: null },
-        [P(`runs/${pid}/total/finished`)]: false,
+      await changeRun(pid, (run) => {
+        const g = run.games[gid];
+        if (!g?.done) return false;
+        run.games[gid] = { ...g, elapsed: g.elapsed || 0, startedAt: null, done: false, doneAt: null };
+        run.total.finished = false;
       });
     },
     async resetGameTime(pid, gid) {
-      const run = runOf(room(), pid);
-      const g = run.games?.[gid] || {};
-      await store.set(P(`runs/${pid}/games/${gid}`), {
-        elapsed: 0, startedAt: timerRunning(g) ? now() : null, done: !!g.done, doneAt: g.doneAt || null,
+      const t = now();
+      await changeRun(pid, (run) => {
+        const g = run.games[gid];
+        if (!g) return false;
+        run.games[gid] = { elapsed: 0, startedAt: timerRunning(g) ? t : null, done: !!g.done, doneAt: g.doneAt || null };
       });
     },
     async startTotal(pid) {
-      const run = runOf(room(), pid);
-      if (timerRunning(run.total)) return;
-      await store.set(P(`runs/${pid}/total`), { elapsed: run.total?.elapsed || 0, startedAt: now(), finished: false });
+      const t = now();
+      await changeRun(pid, (run) => {
+        if (timerRunning(run.total) || run.total.finished) return false;   // beendet → nur über resumeChallenge
+        run.total = { elapsed: run.total.elapsed || 0, startedAt: t, finished: false };
+      }, { create: true });
     },
     /** Pause: stoppt Gesamtzeit UND laufendes Spiel */
     async pauseTotal(pid) {
-      const run = runOf(room(), pid);
-      const map = { [P(`runs/${pid}/total`)]: { ...stopped(run.total), finished: !!run.total?.finished } };
-      for (const [gid, tg] of Object.entries(run.games || {})) {
-        if (timerRunning(tg)) map[P(`runs/${pid}/games/${gid}`)] = stopped(tg);
-      }
-      await store.update(map);
+      const t = now();
+      await changeRun(pid, (run) => {
+        run.total = { ...stopped(run.total, t), finished: !!run.total.finished };
+        for (const [gid, tg] of Object.entries(run.games)) {
+          if (timerRunning(tg)) run.games[gid] = stopped(tg, t);
+        }
+      });
     },
     /** Challenge beenden: alles stoppen, finished = true */
     async finishChallenge(pid) {
-      const run = runOf(room(), pid);
-      const map = { [P(`runs/${pid}/total`)]: { ...stopped(run.total), finished: true }, [P(`runs/${pid}/activeGame`)]: null };
-      for (const [gid, tg] of Object.entries(run.games || {})) {
-        if (timerRunning(tg)) map[P(`runs/${pid}/games/${gid}`)] = stopped(tg);
-      }
-      await store.update(map);
+      const t = now();
+      await changeRun(pid, (run) => {
+        run.total = { ...stopped(run.total, t), finished: true };
+        run.activeGame = null;
+        for (const [gid, tg] of Object.entries(run.games)) {
+          if (timerRunning(tg)) run.games[gid] = stopped(tg, t);
+        }
+      }, { create: true });
     },
     async resumeChallenge(pid) {
-      const run = runOf(room(), pid);
-      await store.set(P(`runs/${pid}/total`), { elapsed: run.total?.elapsed || 0, startedAt: now(), finished: false });
+      const t = now();
+      await changeRun(pid, (run) => {
+        if (timerRunning(run.total)) return false;
+        run.total = { elapsed: run.total.elapsed || 0, startedAt: t, finished: false };
+      }, { create: true });
     },
     /** kompletter Neustart für einen Spieler (alle Zeiten weg) */
     async resetRun(pid) {
@@ -424,15 +490,20 @@ export function bindActions(store, roomKey, getRoom) {
     async addSuggestion(title, pid) {
       title = String(title || '').trim();
       if (!title) return null;
-      const dup = sortedSuggestions(room()).find((s) => s.title.toLowerCase() === title.toLowerCase());
+      const r = room();
+      const dup = sortedSuggestions(r).find((s) => s.title.toLowerCase() === title.toLowerCase());
       if (dup) return dup.id;
-      const id = store.newKey();
-      await store.set(P(`voting/suggestions/${id}`), { title, by: pid || null, createdAt: now() });
+      // Schlüssel aus dem Titel; ist er schon vergeben (Vorschlag wurde umbenannt), ein neuer Push-Key
+      let id = suggestionKey(title);
+      if (r.voting?.suggestions?.[id]) id = store.newKey();
+      const map = { [P(`voting/suggestions/${id}`)]: { title, by: pid || null, createdAt: now() } };
+      clearStaleVotes(r, id, map);
+      await store.update(map);
       return id;
     },
     async renameSuggestion(sid, title) {
       title = String(title || '').trim();
-      if (!title) return;
+      if (!title || !room().voting?.suggestions?.[sid]) return;
       await store.set(P(`voting/suggestions/${sid}/title`), title);
     },
     async removeSuggestion(sid) {
@@ -466,20 +537,26 @@ export function bindActions(store, roomKey, getRoom) {
     },
     /** Ergebnis übernehmen: die Spiele mit inList=true werden die neue Spieleliste. */
     async applyVotingResult() {
-      const rows = votingResults(room()).filter((x) => x.inList);
+      const rows = votingResults(room()).filter((x) => x.inList);   // doppelte Titel sind dort schon aussortiert
       await actions.replaceGames(rows.map((x) => x.title));
       return rows.length;
     },
     /** vorhandene Spiele der Liste als Vorschläge ins Voting übernehmen */
     async importGamesAsSuggestions(pid) {
       const r = room();
+      const suggestions = r.voting?.suggestions || {};
       const existing = new Set(sortedSuggestions(r).map((s) => s.title.toLowerCase()));
       const t = now();
       const map = {};
       let n = 0;
       for (const g of sortedGames(r)) {
-        if (existing.has(g.title.toLowerCase())) continue;
-        map[P(`voting/suggestions/${store.newKey()}`)] = { title: g.title, by: pid || null, createdAt: t + n };
+        const title = g.title.trim();
+        if (!title || existing.has(title.toLowerCase())) continue;
+        existing.add(title.toLowerCase());
+        let id = suggestionKey(title);
+        if (suggestions[id] || map[P(`voting/suggestions/${id}`)]) id = store.newKey();
+        map[P(`voting/suggestions/${id}`)] = { title, by: pid || null, createdAt: t + n };
+        clearStaleVotes(r, id, map);
         n++;
       }
       if (n) await store.update(map);

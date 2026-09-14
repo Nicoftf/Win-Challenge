@@ -1,26 +1,38 @@
 /* ============================================================
    base.css – Design-System für alle Seiten (nicht overlay.html)
-   Dunkel, flach, eine Akzentfarbe, monospaced Zeiten.
+   Schwarz, flach, Rot als einzige Akzentfarbe, monospaced Zeiten.
    ============================================================ */
 
 :root {
-  --bg: #121316;
-  --bg-elev: #191b1f;
-  --bg-hover: #202329;
-  --bg-active: #262a31;
-  --border: #2a2d34;
-  --border-strong: #3a3e47;
-  --text: #e9e9e6;
-  --text-muted: #9a9ea8;
-  --text-faint: #6b6f79;
-  --accent: #f2c14e;
-  --accent-hover: #f7cf6d;
-  --accent-ink: #1a1400;
-  --accent-soft: rgba(242, 193, 78, 0.12);
+  --bg: #070707;
+  --bg-elev: #0f0f10;
+  --bg-hover: #18181a;
+  --bg-active: #212124;
+  --border: #232326;
+  --border-strong: #343438;
+  --border-hover: #48484d;
+  --text: #ededed;
+  --text-muted: #a3a3a8;
+  --text-faint: #808086;
+  /* Rot = rgb(199, 0, 57) (Wunschfarbe). Als kleine Schrift auf Schwarz zu dunkel (3,2:1),
+     daher für Text/kleine Icons eine hellere Variante desselben Farbtons (≥ 4,5:1). */
+  --accent-fill: #c70039;               /* Flächen (weiße Schrift 6:1), Balken, Checkboxen, große Zeit */
+  --accent-fill-hover: #d4003d;
+  --accent: #f54778;                    /* Text, kleine Icons und Fokusrahmen in Rot */
+  --accent-hover: #ff6690;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(199, 0, 57, 0.16);
+  --accent-line: rgba(199, 0, 57, 0.6);
   --green: #56c271;
   --green-soft: rgba(86, 194, 113, 0.14);
-  --red: #e5534b;
-  --red-soft: rgba(229, 83, 75, 0.14);
+  --green-line: rgba(86, 194, 113, 0.35);
+  /* Gefahr/Veto: gleiche Rot-Familie wie der Akzent. Fläche = Primäraktion und gewähltes Veto (X),
+     roter Umriss + Tönung = Gefahr-Buttons (.btn-danger) und „Lieber nicht“ */
+  --red: #f54778;
+  --red-fill: #c70039;
+  --red-soft: rgba(199, 0, 57, 0.16);
+  --red-line: rgba(199, 0, 57, 0.6);
+  --red-text: #f5a3b8;
   --blue: #5b9cf6;
   --radius: 6px;
   --radius-lg: 10px;
@@ -50,7 +62,7 @@ a { color: inherit; }
 button, input, select, textarea { font: inherit; color: inherit; }
 code, .mono { font-family: var(--mono); }
 code { font-size: 0.92em; background: var(--bg-hover); padding: 1px 5px; border-radius: 4px; }
-::selection { background: var(--accent); color: var(--accent-ink); }
+::selection { background: var(--accent-fill); color: var(--accent-ink); }
 
 /* ---------- Layout ---------- */
 .container { max-width: var(--container); margin: 0 auto; padding: 0 20px; }
@@ -88,6 +100,7 @@ code { font-size: 0.92em; background: var(--bg-hover); padding: 1px 5px; border-
 .timer-lg { font-size: 22px; font-weight: 500; }
 .timer.running { color: var(--accent); }
 .timer.done { color: var(--green); }
+.timer-xl.running { color: var(--accent-fill); }   /* große Schrift: das exakte Rot reicht (≥ 3:1) */
 
 /* ---------- Kopfzeile ---------- */
 .topbar {
@@ -97,7 +110,7 @@ code { font-size: 0.92em; background: var(--bg-hover); padding: 1px 5px; border-
 }
 .topbar-inner { display: flex; align-items: center; gap: 20px; height: 52px; }
 .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 600; min-width: 0; }
-.brand .icon { color: var(--accent); flex: none; }
+.brand .icon { color: var(--accent-fill); flex: none; }
 .brand-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
 .nav { display: flex; gap: 2px; }
 .nav a {
@@ -116,12 +129,13 @@ code { font-size: 0.92em; background: var(--bg-hover); padding: 1px 5px; border-
 
 /* ---------- Banner / Toast ---------- */
 .banner { padding: 8px 20px; font-size: 13px; border-bottom: 1px solid var(--border); text-align: center; }
-.banner-local { background: #1f1c12; color: #d8c58a; }
-.banner-offline { background: #2a1c1b; color: #f0a9a4; }
-.banner-error { background: var(--red-soft); color: #f0a9a4; border-radius: var(--radius); border: 1px solid rgba(229,83,75,.3); text-align: left; }
+.banner-local { background: var(--bg-elev); color: var(--text-muted); }
+.banner-local strong { color: var(--text); }
+.banner-offline { background: #1c0b0f; color: var(--red-text); border-bottom-color: var(--red-line); }
+.banner-error { background: var(--red-soft); color: var(--red-text); border-radius: var(--radius); border: 1px solid var(--red-line); text-align: left; }
 .toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
-  background: #26292f; color: var(--text); border: 1px solid var(--border-strong);
+  background: #1a1a1c; color: var(--text); border: 1px solid var(--border-strong);
   padding: 10px 16px; border-radius: var(--radius); box-shadow: var(--shadow);
   opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; z-index: 100; font-size: 14px;
   max-width: calc(100vw - 40px);
@@ -139,16 +153,16 @@ code { font-size: 0.92em; background: var(--bg-hover); padding: 1px 5px; border-
   transition: background .1s, border-color .1s;
   text-decoration: none;
 }
-.btn:hover { background: var(--bg-active); border-color: #4a4f5a; }
+.btn:hover { background: var(--bg-active); border-color: var(--border-hover); }
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-.btn:focus-visible, .input:focus-visible, .select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn:focus-visible, .input:focus-visible, .select:focus-visible, .textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn-primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-ink); }
+.btn-primary:hover { background: var(--accent-fill-hover); border-color: var(--accent-fill-hover); }
 .btn-success { background: var(--green); border-color: var(--green); color: #05170a; }
 .btn-success:hover { background: #6bd185; border-color: #6bd185; }
-.btn-danger { background: transparent; border-color: rgba(229,83,75,.5); color: var(--red); }
-.btn-danger:hover { background: var(--red-soft); border-color: var(--red); }
+.btn-danger { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+.btn-danger:hover { background: rgba(199, 0, 57, 0.28); border-color: var(--accent-hover); }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
 .btn-ghost:hover { background: var(--bg-hover); color: var(--text); border-color: transparent; }
 .btn-sm { height: 28px; padding: 0 9px; font-size: 13px; }
@@ -160,7 +174,7 @@ code { font-size: 0.92em; background: var(--bg-hover); padding: 1px 5px; border-
 .btn-group .btn { border-radius: 0; margin-left: -1px; }
 .btn-group .btn:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0; }
 .btn-group .btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-.btn-group .btn.on { background: var(--bg-active); border-color: var(--border-strong); color: var(--text); position: relative; z-index: 1; }
+.btn-group .btn.on { background: var(--bg-active); border-color: var(--text-muted); color: var(--text); position: relative; z-index: 1; }
 
 /* ---------- Formulare ---------- */
 .input, .select, .textarea {
@@ -170,9 +184,9 @@ code { font-size: 0.92em; background: var(--bg-hover); padding: 1px 5px; border-
 }
 .textarea { height: auto; padding: 8px 10px; resize: vertical; }
 .input::placeholder { color: var(--text-faint); }
-.input:hover, .select:hover { border-color: #4a4f5a; }
+.input:hover, .select:hover { border-color: var(--border-hover); }
 .select { appearance: none; -webkit-appearance: none; padding-right: 26px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%239a9ea8' stroke-width='2' stroke-linecap='round'><path d='M4 6l4 4 4-4'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%23a3a3a8' stroke-width='2' stroke-linecap='round'><path d='M4 6l4 4 4-4'/></svg>");
   background-repeat: no-repeat; background-position: right 8px center; cursor: pointer; }
 .select-sm { height: 28px; font-size: 13px; padding: 0 22px 0 8px; width: auto; }
 .input-sm { height: 28px; font-size: 13px; padding: 0 8px; }
@@ -180,9 +194,9 @@ code { font-size: 0.92em; background: var(--bg-hover); padding: 1px 5px; border-
 .field-row { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 10px; }
 .label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
 .help { font-size: 12px; color: var(--text-faint); }
-input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
+input[type=range] { width: 100%; accent-color: var(--accent-fill); height: 28px; }
 input[type=color] { width: 34px; height: 28px; padding: 2px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--bg); cursor: pointer; }
-input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+input[type=checkbox] { accent-color: var(--accent-fill); width: 15px; height: 15px; margin: 0; }
 .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; }
 
 /* ---------- Flächen ---------- */
@@ -199,7 +213,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 12px 0; }
 .list-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--border); min-height: 48px; }
 .list-row:first-child { border-top: 0; }
 .list-row:hover { background: var(--bg-hover); }
-.list-row.active { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.list-row.active { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent-fill); }
 .list-row.done { color: var(--text-muted); }
 .list-row.done .title { text-decoration: line-through; text-decoration-color: var(--text-faint); }
 .list-row .num { width: 26px; text-align: right; color: var(--text-faint); font-variant-numeric: tabular-nums; font-size: 13px; flex: none; }
@@ -216,9 +230,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 
 /* ---------- Kleinteile ---------- */
 .pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 500; background: var(--bg-hover); border: 1px solid var(--border); color: var(--text-muted); white-space: nowrap; }
-.pill-accent { background: var(--accent-soft); border-color: rgba(242,193,78,.35); color: var(--accent); }
-.pill-green { background: var(--green-soft); border-color: rgba(86,194,113,.35); color: var(--green); }
-.pill-red { background: var(--red-soft); border-color: rgba(229,83,75,.35); color: var(--red); }
+.pill-accent { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.pill-green { background: var(--green-soft); border-color: var(--green-line); color: var(--green); }
+.pill-red { background: var(--red-soft); border-color: var(--red-line); color: var(--red); }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
 .chip { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 4px; font-size: 12px; font-weight: 600; font-family: var(--mono); }
 .kbd { font-family: var(--mono); font-size: 12px; padding: 1px 5px; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 4px; background: var(--bg-hover); }
@@ -229,7 +243,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 /* ---------- Onboarding ---------- */
 .onboarding { max-width: 760px; margin: 60px auto; padding: 0 20px; display: flex; flex-direction: column; gap: 20px; }
 .onboarding-brand { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; }
-.onboarding-brand .icon { color: var(--accent); width: 22px; height: 22px; }
+.onboarding-brand .icon { color: var(--accent-fill); width: 22px; height: 22px; }
 .onboarding-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 640px) { .onboarding-grid { grid-template-columns: 1fr; } .onboarding { margin-top: 30px; } }
 .onboarding-single { max-width: 460px; }

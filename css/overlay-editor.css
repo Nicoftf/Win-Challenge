@@ -12,9 +12,10 @@
 .note { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); color: var(--text-muted); font-size: 13px; line-height: 1.45; }
 .note > .icon { flex: none; margin-top: 1px; }
 .note a { color: var(--text); font-weight: 500; }
-.note-warn { background: #1f1c12; border-color: rgba(216, 197, 138, 0.22); color: #d8c58a; }
-.note-lock { border-color: rgba(229, 83, 75, 0.35); color: #f0a9a4; }
-.note-ok { border-color: rgba(86, 194, 113, 0.35); color: var(--green); }
+.note-warn { border-color: var(--border-strong); color: var(--text-muted); }
+.note-warn strong { color: var(--text); }
+.note-lock { border-color: var(--red-line); color: var(--red-text); }
+.note-ok { border-color: var(--green-line); color: var(--green); }
 .note-ok a:hover { color: var(--green); }
 
 .fold { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elev); }
@@ -62,13 +63,14 @@
 /* ---------- Vorschau ---------- */
 .oe-preview-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .oe-preview-head h2 { margin-right: 2px; }
+.oe-preview-head .btn-group .btn:not(.on) { color: var(--text-muted); }
 .oe-stage {
   position: relative; overflow: auto;
   border: 1px solid var(--border); border-radius: var(--radius-lg);
   max-height: calc(100vh - 220px); min-height: 200px;
 }
 .oe-stage-inner { display: inline-block; min-width: 100%; padding: 20px; position: relative; z-index: 1; }
-.oe-stage.dark { background: #0b0c0f; }
+.oe-stage.dark { background: #000000; }
 .oe-stage.light { background: #e6e6e1; }
 .oe-stage.scene { background: #33402f; }
 .oe-stage.scene::before { content: ''; position: absolute; left: 46%; top: 12%; width: 40%; height: 44%; background: #5c5346; }

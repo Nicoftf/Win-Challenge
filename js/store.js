@@ -4,18 +4,25 @@
 //
 //  Einheitliche API für beide Modi:
 //    store.mode                  'firebase' | 'local'
-//    store.subscribe(path, cb)   cb(value|null) sofort + bei jeder Änderung → unsubscribe()
+//    store.subscribe(path, cb)   cb(value|null, err?) sofort + bei jeder Änderung → unsubscribe()
+//                                err nur bei Lesefehlern (z.B. PERMISSION_DENIED); danach kommt nichts mehr
 //    store.get(path)             Promise<value|null>
 //    store.set(path, value)      Promise<void>   (null = löschen)
 //    store.update({path: value}) Promise<void>   mehrere Pfade atomar, absolute Pfade
 //    store.push(path, value)     Promise<key>
 //    store.remove(path)          Promise<void>
+//    store.transaction(path, fn) Promise<bool>   fn(aktueller Wert) → neuer Wert, undefined = abbrechen.
+//                                Firebase ruft fn erneut mit dem Serverstand auf, wenn jemand dazwischen
+//                                geschrieben hat. true = geschrieben.
+//    store.pendingSince()        Zeitpunkt (ms) des ältesten noch nicht vom Server bestätigten Schreibvorgangs, sonst null
 //    store.now()                 geschätzte Serverzeit in ms
 //    store.newKey()              neuer eindeutiger, zeitlich sortierbarer Schlüssel
 //    store.onConnection(cb)      cb(true|false)
 //
 //  Pfade sind immer absolut, z.B. "rooms/ABC123/games/-N8x…".
 //  Werte wie in Firebase: leere Objekte existieren nicht, undefined ist verboten.
+//  Firebase bestätigt Schreibvorgänge erst nach Antwort des Servers. Offline bleiben sie im Speicher
+//  der Seite und gehen beim Neuladen verloren (deshalb pendingSince).
 
 const FIREBASE_VERSION = '12.19.0';
 const FB = (m) => `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-${m}.js`;
@@ -174,6 +181,14 @@ function createLocalStore() {
       return key;
     },
     async remove(path) { data = setAt(data, path, null); persist(); },
+    async transaction(path, fn) {
+      const next = fn(clone(getAt(data, path)));
+      if (next === undefined) return false;
+      data = setAt(data, path, clean(next));
+      persist();
+      return true;
+    },
+    pendingSince() { return null; },
     now() { return Date.now(); },
     newKey() { return generatePushId(); },
     onConnection(cb) { connSubs.add(cb); queueMicrotask(() => cb(true)); return () => connSubs.delete(cb); },
@@ -191,28 +206,52 @@ async function createFirebaseStore(config) {
   let offset = 0;
   db.onValue(db.ref(database, '.info/serverTimeOffset'), (s) => { offset = s.val() || 0; });
 
+  // noch nicht bestätigte Schreibvorgänge (Startzeitpunkte)
+  const pending = new Set();
+  const track = (promise) => {
+    const entry = { t: Date.now() };
+    pending.add(entry);
+    return promise.finally(() => pending.delete(entry));
+  };
+
   return {
     mode: 'firebase',
     subscribe(path, cb) {
       return db.onValue(
         db.ref(database, path),
         (snap) => cb(snap.val()),
-        (err) => { console.error('Firebase subscribe', path, err); cb(null); }
+        (err) => { console.error('Firebase subscribe', path, err); cb(null, err); }
       );
     },
     async get(path) { return (await db.get(db.ref(database, path))).val(); },
-    set(path, value) { return db.set(db.ref(database, path), clean(value)); },
+    set(path, value) { return track(db.set(db.ref(database, path), clean(value))); },
     update(map) {
       const cleaned = {};
       for (const [p, v] of Object.entries(map)) cleaned[p] = clean(v);
-      return db.update(db.ref(database), cleaned);
+      return track(db.update(db.ref(database), cleaned));
     },
     async push(path, value) {
       const r = db.push(db.ref(database, path));
-      await db.set(r, clean(value));
+      await track(db.set(r, clean(value)));
       return r.key;
     },
-    remove(path) { return db.remove(db.ref(database, path)); },
+    remove(path) { return track(db.remove(db.ref(database, path))); },
+    transaction(path, fn) {
+      const run = db.runTransaction(db.ref(database, path), (cur) => {
+        const next = fn(cur);
+        return next === undefined ? undefined : clean(next);
+      });
+      return track(run).then(
+        (r) => r.committed,
+        // "set": ein anderer Schreibvorgang auf denselben Pfad hat die Transaktion überholt
+        (e) => { if (e?.message === 'set') return false; throw e; }
+      );
+    },
+    pendingSince() {
+      let oldest = null;
+      for (const e of pending) if (oldest === null || e.t < oldest) oldest = e.t;
+      return oldest;
+    },
     now() { return Date.now() + offset; },
     newKey() { return db.push(db.ref(database, '_keys')).key; },
     onConnection(cb) {
