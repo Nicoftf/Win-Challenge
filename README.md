@@ -4,6 +4,8 @@ Eine kleine Website für eure Win-Challenge: gemeinsame Spieleliste, Voting, Zei
 Läuft komplett im Browser – keine Installation, kein Build, kein eigener Server. Der Abgleich zwischen euch läuft über
 eine kostenlose Firebase Realtime Database; zum Ausprobieren geht es auch ohne (lokaler Modus).
 
+**Online:** https://nicoftf.github.io/Win-Challenge/
+
 ## Seiten
 
 | Seite | Datei | Zweck |
@@ -107,6 +109,13 @@ Tarif „Spark“: kostenlos, keine Kreditkarte, kein Ablaufdatum. Limits der Re
 OBS sind ein paar Verbindungen. Ihr kommt nicht in die Nähe der Grenzen.
 
 ## Auf GitHub Pages veröffentlichen
+
+> Für dieses Repository ist GitHub Pages schon eingerichtet: https://nicoftf.github.io/Win-Challenge/
+> Änderungen (z. B. die Firebase-Werte in `js/config.js`) einfach committen und pushen:
+> ```bash
+> git add -A && git commit -m "Firebase eingetragen" && git push
+> ```
+> Nach ca. einer Minute ist die neue Version online. Die Schritte unten brauchst du nur für ein eigenes, neues Repository.
 
 Damit alle die gleiche Adresse benutzen (und OBS von überall darauf zugreift), legst du die Dateien auf GitHub Pages ab.
 
